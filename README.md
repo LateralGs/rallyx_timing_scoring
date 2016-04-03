@@ -1,2 +1,5 @@
-# rallyx_timing_scoring
-RallyCross timing and scoring system for Oregon Rally Group
+## RallyCross timing and scoring system for Oregon Rally Group
+
+- http://oregonrally.com/
+- http://scca.com/
+
