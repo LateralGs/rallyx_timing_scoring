@@ -1,0 +1,52 @@
+table: Driver
+- First
+- Last
+- scca_number
+- license_number
+- car_id
+
+
+table: Car
+- class (SA,PA,MA,SF,SR,PF,PR,MF,MR,TO)
+- year
+- make
+- model
+- color
+- number
+
+
+table: Event
+- date
+- description
+- season_points (bool)
+- cone_penalty (seconds)
+- gate_penalty (seconds)
+- drop_runs (bool)
+- min_runs
+- max_runs
+
+
+table: Run
+- driver_id
+- run_time (null = dns/dnf)
+- cone_penalties (count)
+- gate_penalties (count)
+
+
+table: RawTimes
+- local_timestamp
+- time_stamp
+- type (1,2,M1,M2)
+- disabled
+
+
+table: Session
+- session_name
+- event_id
+
+
+table: Season
+- year
+- organization
+- event_id
+
