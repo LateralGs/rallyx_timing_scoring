@@ -21,6 +21,8 @@
 // increment this any time the rom format is changed or needs to be cleared
 #define EEPROM_VERSION 0
 
+#define EVENT_MAX 2048
+
 typedef enum {
   ROM_OFFSET_VERSION=0,
   ROM_OFFSET_DEBOUNCE,
@@ -32,8 +34,8 @@ typedef enum {
   SOURCE_START = 0,
   SOURCE_FINISH,
   SOURCE_MANUAL_START,
-  SOURCE_MANUAL_FINISH
-} time_source_t;
+  SOURCE_MANUAL_FINISH,
+} source_t;
 
 typedef struct 
 {
@@ -42,25 +44,29 @@ typedef struct
   uint32_t  debounce_count;
   uint32_t  deadtime_count;
   uint32_t  time;
+  source_t  source;
 } trigger_state_t;
 
 typedef struct
 {
   uint32_t time;
-  time_source_t source;
-} time_event_t;
+  source_t source;
+} event_t;
 
 volatile uint32_t debounce = DEFAULT_DEBOUNCE; // max number of debounce cycles
 volatile uint32_t deadtime = DEFAULT_DEADTIME; // deadtime before next trigger
 
 volatile uint32_t ms_time = 0; // master millisecond time
 
-volatile uint32_t trigger_count = 0;
+volatile uint32_t event_count = 0;
+volatile event_t events[EVENT_MAX];
 
-volatile trigger_state_t start_trigger = {PIN_TS, false, 0, 0};
-volatile trigger_state_t finish_trigger = {PIN_TF, false, 0, 0};
-volatile trigger_state_t manual_start_trigger = {PIN_MTS, false, 0, 0};
-volatile trigger_state_t manual_finish_trigger = {PIN_MTF, false, 0, 0};
+#define INIT_TRIGGER(pin, source) {pin, false, 0, 0, 0, source}
+
+volatile trigger_state_t start_trigger = INIT_TRIGGER(PIN_TS, SOURCE_START);
+volatile trigger_state_t finish_trigger = INIT_TRIGGER(PIN_TF, SOURCE_FINISH);
+volatile trigger_state_t manual_start_trigger = INIT_TRIGGER(PIN_MTS, SOURCE_MANUAL_START);
+volatile trigger_state_t manual_finish_trigger = INIT_TRIGGER(PIN_MTF, SOURCE_MANUAL_FINISH);
 
 bool update_trigger( volatile trigger_state_t * trigger )
 {
@@ -86,6 +92,9 @@ bool update_trigger( volatile trigger_state_t * trigger )
     {
       trigger->time = ms_time;
       trigger->deadtime_count = deadtime;
+      events[event_count % EVENT_MAX].time = ms_time;
+      events[event_count % EVENT_MAX].source = trigger->source;
+      event_count++;
     }
     return true;
   }
@@ -169,6 +178,30 @@ void print_time(uint32_t time)
   Serial.print(ms);
 }
 
+void print_event(uint32_t index)
+{
+  switch(events[index].source)
+  {
+    case SOURCE_START:
+      Serial.print("1 ");
+      break;
+    case SOURCE_FINISH:
+      Serial.print("2 ");
+      break;
+    case SOURCE_MANUAL_START:
+      Serial.print("M1 ");
+      break;
+    case SOURCE_MANUAL_FINISH:
+      Serial.print("M2 ");
+      break;
+  }
+
+  print_time(events[index].time);
+  Serial.write(' ');
+  Serial.print(events[index].time);
+}
+
+
 void setup(void)
 {
   for( uint32_t pin = 0; pin < 34; pin++ )
@@ -206,17 +239,37 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
   if( strcasecmp(cmd, "ping") == 0 )
   {
     Serial.print("P ");
-    Serial.println(value);
+    Serial.println(val_ok ? value : 0);
   }
   else if( strcasecmp(cmd, "recall") == 0 )
   {
-    //Serial.println("R M1 01:23:45.678 123345 123");
-    Serial.println("E not implemented");
+    if( val_ok && value < event_count && (event_count < EVENT_MAX || value >= event_count - EVENT_MAX) )
+    {
+      Serial.print("R ");
+      print_event(value % EVENT_MAX);
+      Serial.write(' ');
+      Serial.println(value);
+      //Serial.println("R M1 01:23:45.678 123345 123");
+    }
+    else
+    {
+      Serial.println("E bad value");
+    }
   }
   else if( strcasecmp(cmd, "clear") == 0 )
   {
-    //Serial.println("C");
-    Serial.println("E not implemented");
+    event_count = 0;
+    Serial.println("C 0");
+  }
+  else if( strcasecmp(cmd, "count") == 0 )
+  {
+    Serial.print("C ");
+    Serial.println(event_count);
+  }
+  else if( strcasecmp(cmd, "max") == 0 )
+  {
+    Serial.print("M ");
+    Serial.println(EVENT_MAX);
   }
   else if( strcasecmp(cmd, "debounce") == 0 )
   {
@@ -237,6 +290,15 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
     }
     Serial.print("D ");
     Serial.println(deadtime);
+  }
+  else if( strcasecmp(cmd, "time") == 0 )
+  {
+    if( val_ok )
+    {
+      ms_time = value;
+    }
+    Serial.print("N ");
+    Serial.println(ms_time);
   }
   else
   {
@@ -317,50 +379,22 @@ void loop_wait(void)
 
 void loop(void)
 {
+  static uint32_t count = 0;
+
   digitalWrite(PIN_LED, HIGH);
 
-  if( start_trigger.time )
+  if( count > event_count )
   {
-    Serial.print("T 1 ");
-    print_time(start_trigger.time);
-    Serial.write(' ');
-    Serial.print(start_trigger.time);
-    Serial.write(' ');
-    Serial.println(trigger_count++);
-    start_trigger.time = 0;
+    count = 0;
   }
 
-  if( finish_trigger.time )
+  if( count < event_count )
   {
-    Serial.print("T 2 ");
-    print_time(finish_trigger.time);
+    Serial.print("T ");
+    print_event(count % EVENT_MAX);
     Serial.write(' ');
-    Serial.print(finish_trigger.time);
-    Serial.write(' ');
-    Serial.println(trigger_count++);
-    finish_trigger.time = 0;
-  }
-
-  if( manual_start_trigger.time )
-  {
-    Serial.print("T M1 ");
-    print_time(manual_start_trigger.time);
-    Serial.write(' ');
-    Serial.print(manual_start_trigger.time);
-    Serial.write(' ');
-    Serial.println(trigger_count++);
-    manual_start_trigger.time = 0;
-  }
-
-  if( manual_finish_trigger.time )
-  {
-    Serial.print("T M2 ");
-    print_time(manual_finish_trigger.time);
-    Serial.write(' ');
-    Serial.print(manual_finish_trigger.time);
-    Serial.write(' ');
-    Serial.println(trigger_count++);
-    manual_finish_trigger.time = 0;
+    Serial.println(count);
+    count++;
   }
 
   command_update();
