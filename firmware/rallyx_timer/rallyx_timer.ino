@@ -236,10 +236,23 @@ void setup(void)
 
 void command_process(char * cmd, uint32_t value, bool val_ok )
 {
-  if( strcasecmp(cmd, "ping") == 0 )
+  if( strcasecmp(cmd, "time") == 0 )
+  {
+    if( val_ok )
+    {
+      ms_time = value;
+    }
+    Serial.print("N ");
+    Serial.println(ms_time);
+  }
+  else if( strcasecmp(cmd, "ping") == 0 )
   {
     Serial.print("P ");
     Serial.println(val_ok ? value : 0);
+  }
+  else if( strcasecmp(cmd, "id") == 0 )
+  {
+    Serial.println("I RALLYX_TIMER");
   }
   else if( strcasecmp(cmd, "recall") == 0 )
   {
@@ -290,15 +303,6 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
     }
     Serial.print("D ");
     Serial.println(deadtime);
-  }
-  else if( strcasecmp(cmd, "time") == 0 )
-  {
-    if( val_ok )
-    {
-      ms_time = value;
-    }
-    Serial.print("N ");
-    Serial.println(ms_time);
   }
   else
   {
