@@ -43,20 +43,20 @@ typedef struct
   bool      active;
   uint32_t  debounce_count;
   uint32_t  deadtime_count;
-  uint32_t  time;
+  uint64_t  time;
   source_t  source;
 } trigger_state_t;
 
 typedef struct
 {
-  uint32_t time;
+  uint64_t time;
   source_t source;
 } event_t;
 
 volatile uint32_t debounce = DEFAULT_DEBOUNCE; // max number of debounce cycles
 volatile uint32_t deadtime = DEFAULT_DEADTIME; // deadtime before next trigger
 
-volatile uint32_t ms_time = 0; // master millisecond time
+volatile uint64_t ms_time = 0; // master millisecond time
 
 volatile uint32_t event_count = 0;
 volatile event_t events[EVENT_MAX];
@@ -152,30 +152,26 @@ void format_eeprom(void)
   eeprom_write(ROM_OFFSET_START, 0xff);
 }
 
-void print_time(uint32_t time)
+void print_uint64(uint64_t value)
 {
-  uint32_t ms = time % 1000;
-  uint32_t s = (time / 1000) % 60;
-  uint32_t m = (time / 60000) % 60;
-  uint32_t h = time / 3600000;
+  char buf[32];
+  int i = 0;
 
-  if( h < 10 )
-    Serial.write('0');
-  Serial.print(h);
-  Serial.write(':');
-  if( m < 10 )
-    Serial.write('0');
-  Serial.print(m);
-  Serial.write(':');
-  if( s < 10 )
-    Serial.write('0');
-  Serial.print(s);
-  Serial.write('.');
-  if( ms < 100 )
-    Serial.write('0');
-  if( ms < 10 )
-    Serial.write('0');
-  Serial.print(ms);
+  if( value == 0 )
+  {
+    Serial.print('0');
+  }
+
+  while( value > 0 )
+  {
+    buf[i++] = '0' + (value % 10);
+    value /= 10;
+  }
+  while( i > 0 )
+  {
+    Serial.print(buf[i-1]);
+    i--;
+  }
 }
 
 void print_event(uint32_t index)
@@ -196,11 +192,8 @@ void print_event(uint32_t index)
       break;
   }
 
-  print_time(events[index].time);
-  Serial.write(' ');
-  Serial.print(events[index].time);
+  print_uint64(events[index].time);
 }
-
 
 void setup(void)
 {
@@ -234,7 +227,7 @@ void setup(void)
   Timer1.start();
 }
 
-void command_process(char * cmd, uint32_t value, bool val_ok )
+void command_process(char * cmd, uint64_t value, bool val_ok )
 {
   if( strcasecmp(cmd, "time") == 0 )
   {
@@ -243,12 +236,14 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
       ms_time = value;
     }
     Serial.print("N ");
-    Serial.println(ms_time);
+    print_uint64(ms_time);
+    Serial.println();
   }
   else if( strcasecmp(cmd, "ping") == 0 )
   {
     Serial.print("P ");
-    Serial.println(val_ok ? value : 0);
+    print_uint64(val_ok ? value : 0);
+    Serial.println();
   }
   else if( strcasecmp(cmd, "id") == 0 )
   {
@@ -261,8 +256,8 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
       Serial.print("R ");
       print_event(value % EVENT_MAX);
       Serial.write(' ');
-      Serial.println(value);
-      //Serial.println("R M1 01:23:45.678 123345 123");
+      Serial.println((uint32_t)value);
+      //Serial.println("R M1 123345 123");
     }
     else
     {
@@ -288,7 +283,7 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
   {
     if( val_ok )
     {
-      debounce = value;
+      debounce = (uint32_t)value;
       eeprom_write(ROM_OFFSET_DEBOUNCE, debounce);
     }
     Serial.print("B ");
@@ -298,7 +293,7 @@ void command_process(char * cmd, uint32_t value, bool val_ok )
   {
     if( val_ok )
     {
-      deadtime = value;
+      deadtime = (uint32_t)value;
       eeprom_write(ROM_OFFSET_DEADTIME, deadtime);
     }
     Serial.print("D ");
@@ -320,7 +315,7 @@ void command_update(void)
   char *cmd;
   char *param;
   char *endptr;
-  uint32_t value;
+  uint64_t value;
 
   while( Serial.available() )
   {
@@ -335,7 +330,7 @@ void command_update(void)
           // format: <cmd> <value>
           cmd = strtok(buffer, " ");
           param = strtok(NULL, " ");
-          value = param != NULL ? strtoul(param, &endptr, 0) : 0;
+          value = param != NULL ? strtoull(param, &endptr, 0) : 0;
 
           command_process(cmd, value, (param != NULL) && (*endptr == 0));
 
@@ -376,7 +371,7 @@ void command_update(void)
 
 void loop_wait(void)
 {
-  static uint32_t prev_time = 0;
+  static uint64_t prev_time = 0;
   while( prev_time == ms_time );
   prev_time = ms_time;
 }
