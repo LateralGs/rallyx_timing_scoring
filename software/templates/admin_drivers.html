@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+  tr:target {
+    background: #ffb;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Drivers Database</h2>
+  {% include "admin_nav.html" %}
+  {% include "flash_message.html" %}
+
+  <div>
+    <h2>Add Driver</h2>
+    <form action="{{url_for('drivers_page')}}"  method='POST'>
+      <p><label>First Name: </label>*<input type="text" size=40 name="first_name" required /></p>
+      <p><label>Last Name: </label>*<input type="text" size=40 name="last_name" required /></p>
+      <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" /></p>
+      <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" /></p>
+      <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" /></p>
+      <p><label>License #:</label> <input type="text" size=40 name="license_number" /></p>
+      <p><label>Addr 1:</label> <input type="text" size=40 name="addr_line_1" /></p>
+      <p><label>Addr 2:</label> <input type="text" size=40 name="addr_line_2" /></p>
+      <p><label>City:</label> <input type="text" size=40 name="addr_city" /></p>
+      <p><label>State:</label> <input type="text" size=40 name="addr_state" /></p>
+      <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" /></p>
+      <p><label>Phone:</label> <input type="text" size=40 name="phone" /></p>
+      <p><label>Email:</label> <input type="text" size=40 name="email" /></p>
+      <p><label>Note:</label> <input type="text" size=40 name="driver_note" /></p>
+      <br/>
+      <p><label><b>* = required</b></label> <button type="submit" name="action" value="insert">Add Driver</button></p>
+    </form>
+  </div>
+  <hr/>
+  <h2>Driver List</h2>
+  <table class="simple tshrink">
+    <tr>
+      <th colspan=2 class="nowrap">Driver</th>
+      <th class="nowrap">First Name (alt)</th>
+      <th class="nowrap">Last Name</th>
+      <th class="nowrap">SCCA #</th>
+      <th class="nowrap">Phone</th>
+      <th class="nowrap">Email</th>
+      <th class="nowrap">Note</th>
+    </tr>
+    <tr class="break"></tr>
+    {% for driver in g.driver_list %}
+    <a name="{{driver.driver_id}}" />
+    <tr id="{{driver.driver_id}}">
+      <td><button onclick='$("#edit_{{driver.driver_id}}").toggle()'>Edit</button></td>
+      <td><b>[{{driver.driver_id}}]</b></td>
+      <td class="nowrap">{{driver.first_name if driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}}</td>
+      <td class="nowrap">{{driver.last_name if driver.last_name}}</td>
+      <td class="nowrap">{{driver.scca_number if driver.scca_number}}</td>
+      <td class="nowrap">{{driver.phone if driver.phone}}</td>
+      <td class="nowrap">{{driver.email if driver.email}}</td>
+      <td style="text-align: left">{{driver.driver_note if driver.driver_note}}</td>
+    </tr>
+    <tr id="edit_{{driver.driver_id}}" style="display: none">
+      <td colspan=8 style="text-align: left; background: #ffd">
+        <form action="{{url_for('drivers_page')}}"  method='POST'>
+          <input type="hidden" name="driver_id" value="{{driver.driver_id}}" />
+          <p><label>First Name: </label>*<input type="text" size=40 name="first_name" value="{{driver.first_name if driver.first_name}}" required /></p>
+          <p><label>Last Name: </label>*<input type="text" size=40 name="last_name" value="{{driver.last_name if driver.last_name}}" required /></p>
+          <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" value="{{driver.alt_name if driver.alt_name}}" /></p>
+          <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" value="{{driver.msreg_number if driver.msreg_number}}" /></p>
+          <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" value="{{driver.scca_number if driver.scca_number}}" /></p>
+          <p><label>License #:</label> <input type="text" size=40 name="license_number" value="{{driver.license_number if driver.license_number}}" /></p>
+          <p><label>Addr 1:</label> <input type="text" size=40 name="addr_line_1" value="{{driver.addr_line_1 if driver.addr_line_1}}" /></p>
+          <p><label>Addr 2:</label> <input type="text" size=40 name="addr_line_2" value="{{driver.addr_line_2 if driver.addr_line_2}}" /></p>
+          <p><label>City:</label> <input type="text" size=40 name="addr_city" value="{{driver.addr_city if driver.addr_city}}" /></p>
+          <p><label>State:</label> <input type="text" size=40 name="addr_state" value="{{driver.addr_state if driver.addr_state}}" /></p>
+          <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" value="{{driver.addr_zip if driver.addr_zip}}" /></p>
+          <p><label>Phone:</label> <input type="text" size=40 name="phone" value="{{driver.phone if driver.phone}}" /></p>
+          <p><label>Email:</label> <input type="text" size=40 name="email" value="{{driver.email if driver.email}}" /></p>
+          <p><label>Note:</label> <input type="text" size=40 name="driver_note" value="{{driver.driver_note if driver.driver_note}}" /></p>
+          <hr/>
+          <button type="submit" name="action" value="update">Save Changes</button>
+          <span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete" value="do_it"/> - <button type="submit" name="action" value="delete">Delete Driver</button></span>
+        </form>
+      </td>
+    </tr>
+    <tr class="break"></tr>
+    {% else %}
+    <tr><td colspan=11>None</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
+

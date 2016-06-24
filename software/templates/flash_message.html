@@ -1,0 +1,15 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash_div">
+    <ul class="flash_list">
+    {% for category, message in messages %}
+      {% if category == 'safe' %}
+      <li class="flash_{{ category }}">{{ message|safe }}</li>
+      {% else %}
+      <li class="flash_{{ category }}">{{ message }}</li>
+      {% endif %}
+    {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endwith %}

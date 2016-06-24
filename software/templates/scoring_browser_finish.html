@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>ORG RallyX Live Scoring</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <!--<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />-->
+
+  <style>
+  table.latest, table.fastest, table.scores, table.cone_killer, table.lost_and_found {
+    border: 1px solid black;
+    border-collapse: collapse;
+  }
+
+  th {
+    border: 1px solid black;
+    background: #ccc;
+    text-align: center;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  tr {
+    border: 1px solid black;
+  }
+
+  tbody.blue tr.even { background: #ccf; }
+  tbody.blue tr.odd { background: #eef; }
+  tbody.green tr.even { background: #cfc; }
+  tbody.green tr.odd { background: #efe; }
+  tbody.red tr.even { background: #fcc; }
+  tbody.red tr.odd { background: #fee; }
+  tbody.cyan tr.even { background: #cff; }
+  tbody.cyan tr.odd { background: #eff; }
+  tbody.magenta tr.even { background: #fcf; }
+  tbody.magenta tr.odd { background: #fef; }
+  tbody.yellow tr.even { background: #ffc; }
+  tbody.yellow tr.odd { background: #ffe; }
+  tbody.gray tr.even, tr.even { background: #ccc; }
+  tbody.gray tr.odd, tr.odd { background: #eee; }
+
+  tr.break {
+    height: 8px;
+  }
+
+  td {
+    text-align: center;
+    padding-left: 4px;
+    padding-right: 4px;
+    border: 1px solid black;
+  }
+
+  td.driver_name {
+    white-space: nowrap;
+  }
+
+  td.drop {
+    //font-weight: bold;
+  }
+
+  td.run_border {
+    border-right: 2px solid black;
+  }
+
+  body {
+    font-family: Monospace;
+  }
+
+  </style>
+</head>
+<body>
+  <h1>ORG RallyX Live Scoring</h1>
+  <span>All scores are provisional pending fianal audit by event officials.</span>
+  <h3><a href="{{url_for('index_page')}}">Event Scores</a></h3>
+  <div>
+    <h2>Latest Runs</h2>
+    <table class="latest">
+      <tr>
+        <th>Class</th>
+        <th>Name</th>
+        <th>Car</th>
+        <th>Raw</th>
+        <th>C</th>
+        <th>G</th>
+        <th>Total</th>
+        <th>Run</th>
+      </tr>
+      <tbody class="blue">
+        {% for run in g.latest_runs %}
+        <tr class="{{run.class|lower}} {{ loop.cycle('odd', 'even') }}">
+          <td>{{run.car_class}}</td>
+          <td>{{run.first_name}} {{'('+run.alt_name+')' if run.alt_name}} {{run.last_name}}</td>
+          <td>{{run.car_number}}</td>
+          <td>{{run.raw_time}}</td>
+          <td>{{run.cones if run.cones > 0 else '-'}}</td>
+          <td>{{run.gates if run.gates > 0 else '-'}}</td>
+          <td>{{run.total_time}}</td>
+          <td style="text-align: left">{{run.run_count}} <b style="color: red">{{'FINAL RUN!' if run.run_count >= g.max_runs}}</b></td>
+        </tr>
+        {% else %}
+        <tr class="odd">
+          <td colspan=9 style="text-align: center">None</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</body>
+</html>
+

@@ -1,0 +1,157 @@
+
+table.simple {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+
+table.layout {
+  border: none;
+  border-collapse: collapse;
+  //width: 100%;
+}
+
+table.layout td {
+  vertical-align: top;
+  text-align: left;
+}
+
+table.simple th {
+  border: 1px solid black;
+  background: #ccc;
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+div.layout_box {
+  border: 1px solid gray;
+  padding: 8px;
+  margin: 4px;
+}
+
+table.simple tr {
+  border: 1px solid black;
+}
+
+tbody.blue tr.even { background: #ccf; }
+tbody.blue tr.odd { background: #eef; }
+tbody.green tr.even { background: #cfc; }
+tbody.green tr.odd { background: #efe; }
+tbody.red tr.even { background: #fcc; }
+tbody.red tr.odd { background: #fee; }
+tbody.cyan tr.even { background: #cff; }
+tbody.cyan tr.odd { background: #eff; }
+tbody.magenta tr.even { background: #fcf; }
+tbody.magenta tr.odd { background: #fef; }
+tbody.yellow tr.even { background: #ffc; }
+tbody.yellow tr.odd { background: #ffe; }
+tbody.gray tr.even, tr.even { background: #ccc; }
+tbody.gray tr.odd, tr.odd { background: #eee; }
+
+tr.break {
+  height: 8px;
+}
+
+table.simple td {
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+  border: 1px solid black;
+}
+
+td.driver_name {
+  white-space: nowrap;
+}
+
+td.drop {
+  //font-weight: bold;
+}
+
+td.run_border {
+  border-right: 2px solid black;
+}
+
+body {
+  font-family: Monospace;
+}
+
+
+#nav {
+  border: 1px dashed gray;
+  padding: 8px;
+  margin: 4px;
+}
+
+.flash_div {
+  border: 1px dashed gray;
+  margin: 4px;
+}
+
+.flash_list {
+  list-style: inside;
+  margin: 2px;
+  padding: 0px;
+}
+
+.flash_error {
+  background: #fdd;
+  margin: 2px;
+  padding: 2px;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+.flash_warning {
+  background: #ffd;
+  margin: 2px;
+  padding: 2px;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+.flash_message {
+  background: #dfd;
+  margin: 2px;
+  padding: 2px;
+}
+
+input, select, button {
+  font-family: Monospace;
+  font-size: 1.1em;
+  padding: 2px;
+  margin: 2px;
+}
+
+input[type=text], input[type=number], input[type=date] {
+  border: 2px solid gray;
+}
+
+select, button, input[type=button] {
+  background: #eee;
+  border: 2px solid gray;
+}
+
+select:hover, button:hover, input[type=button]:hover {
+  border: 2px solid red;
+}
+
+input:focus, select:focus {
+  border: 2px solid red;
+}
+
+input[type=button]:disabled {
+  color: lightgray;
+  border: lightgray;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.tshrink td:last-child {
+  width:100%;
+}
+.center {
+  text-align: center;
+}
+.left {
+  text-align: left;
+}

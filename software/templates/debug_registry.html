@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 20em;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Debug Registry</h2>
+  {% include 'admin_nav.html' %}
+  {% include 'flash_message.html' %}
+
+  <div class="layout_box">
+    {% for row in reg_list %}
+    <p>
+      <form method="POST">
+        <label>{{row.key}}</label>
+        <input type="text" name="{{row.key}}" value="{{row.value if not row.value is none}}" size="48"/>
+        <input type="submit" name="action" value="update">
+      </form>
+    </p>
+    {% else %}
+    <p>None</p>
+    {% endfor %}
+    </table>
+  </div>
+</body>
+</html>
+

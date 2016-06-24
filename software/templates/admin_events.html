@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+  .active {
+    background: #dfd;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Events</h2>
+  {% include "admin_nav.html" %}
+  {% include "flash_message.html" %}
+
+  <div>
+    <h2>Add Event</h2>
+    <form action="{{url_for('events_page')}}"  method='POST'>
+      <p><label>Name:</label>*<input type="text" size=40 name="name" required /></p>
+      <p><label>Location:</label>*<input type="text" size=40 name="location" value="{{config.DEFAULT_LOCATION}}" required /></p>
+      <p><label>Date:</label>*<input type="date" size=40 name="date" value="{{g.default_date}}" required /></p>
+      <p><label>Season:</label>*<input type="text" size=40 name="season" value="{{config.DEFAULT_SEASON}}" required /></p>
+      <p><label>Organization:</label> <input type="text" size=40 name="organization" value="{{config.DEFAULT_ORGANIZATION}}"/></p>
+      <p><label>Season Points:</label>
+      <select name="season_points">
+        <option value='0'>No</option>
+        <option value='1' selected>Yes</option>
+      </select></p>
+      <p><label>National:</label>
+      <select name="national">
+        <option value='0' selected>No</option>
+        <option value='1'>Yes</option>
+      </select></p>
+      <p><label>Visible:</label>
+      <select name="visible">
+        <option value='0' selected>No</option>
+        <option value='1'>Yes</option>
+      </select></p>
+      <p><label>Note:</label> <input type="text" size=40 name="event_note" /></p>
+      <br/>
+      <p><label><b>* = required</b></label> <button type="submit" name="action" value="insert">Add Event</button> </p>
+    </form>
+  </div>
+  <hr/>
+  <h2>Event List</h2>
+  <table class="simple tshrink">
+    <tr>
+      <th colspan=3>Event</th>
+      <th>Name</th>
+      <th>Location</th>
+      <th>Date</th>
+      <th>Season</th>
+      <th>Organization</th>
+      <th class="nowrap">Season Points</th>
+      <th>National</th>
+      <th>Visible</th>
+      <th>Note</th>
+    </tr>
+    <tr class="break"></tr>
+    {% for event in g.event_list %}
+    {% if event.event_id == g.active_event_id %}
+    <tr>
+      <th colspan=12>Active Event</th>
+    </tr>
+    {% endif %}
+    <tr class="{{'active' if event.event_id == g.active_event_id}}">
+      <td><button onclick='$("#edit_{{event.event_id}}").toggle()'>Edit</button></td>
+      <td>
+        <form action="{{url_for('events_page')}}"  method='POST'>
+          <input type="hidden" name="event_id" value="{{event.event_id}}" />
+          <button type="submit" name="action" value="activate">Activate</button>
+        </form>
+      </td>
+      <td><b>[{{event.event_id}}]</b></td>
+      <td class="nowrap">{{event.name}}</td>
+      <td class="nowrap">{{event.location}}</td>
+      <td class="nowrap">{{event.date}}</td>
+      <td class="nowrap">{{event.season}}</td>
+      <td class="nowrap">{{event.organization}}</td>
+      <td>{{'Yes' if event.season_points else 'No'}}</td>
+      <td>{{'Yes' if event.national else 'No'}}</td>
+      <td>{{'Yes' if event.visible else 'No'}}</td>
+      <td>{{event.event_note if event.event_note}}</td>
+    </tr>
+    <tr id="edit_{{event.event_id}}" style="display: none">
+      <td colspan=12 style="text-align: left; background: #ffd">
+        <form action="{{url_for('events_page')}}"  method='POST'>
+          <input type="hidden" name="event_id" value="{{event.event_id}}" />
+          <p><label>Name:</label>*<input type="text" size=40 name="name" value="{{event.name}}" required /></p>
+          <p><label>Location:</label>*<input type="text" size=40 name="location" value="{{event.location}}" required /></p>
+          <p><label>Date:</label>*<input type="date" size=40 name="date" value="{{event.date}}" required /></p>
+          <p><label>Season:</label>*<input type="text" size=40 name="season" value="{{event.season}}" required /></p>
+          <p><label>Organization:</label> <input type="text" size=40 name="organization" value="{{event.organization}}"/></p>
+          <p><label>Season Points:</label>
+          <select name="season_points">
+            <option value='0' {{'selected' if not event.season_points}}>No</option>
+            <option value='1' {{'selected' if event.season_points}}>Yes</option>
+          </select></p>
+          <p><label>National:</label>
+          <select name="national">
+            <option value='0' {{'selected' if not event.national}}>No</option>
+            <option value='1' {{'selected' if event.national}}>Yes</option>
+          </select></p>
+          <p><label>Visible:</label>
+          <select name="visible">
+            <option value='0' {{'selected' if not event.visible}}>No</option>
+            <option value='1' {{'selected' if event.visible}}>Yes</option>
+          </select></p>
+          <p><label>Note:</label> <input type="text" size=40 name="event_note" value="{{event.event_note if event.event_note}}" /></p>
+          <hr/>
+          <button type="submit" name="action" value="update">Save Changes</button>
+          <span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete" value="do_it"/> - <button type="submit" name="action" value="delete">Delete Event</button></span>
+        </form>
+      </td>
+    </tr>
+    <tr class="break"></tr>
+    {% else %}
+    <tr><td colspan=11>None</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
+

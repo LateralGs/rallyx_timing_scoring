@@ -1,3 +1,4 @@
 *.pyc
 *.db
 *.csv
+secret_key.py
