@@ -252,8 +252,8 @@ def timing_page():
           
         label_text = " %2s %-3s %-24s %4s" % (entry['car_class'], entry['car_number'], entry_name, run['run_count'])
         label_text += "\r\n"
-        cones = '-' if run['cones'] is None else run['cones']
-        gates = '-' if run['gates'] is None else run['gates']
+        cones = '0' if run['cones'] is None else run['cones']
+        gates = '0' if run['gates'] is None else run['gates']
         label_text += " %12s %4s %4s %12s" % ( run['raw_time'], cones, gates, run['total_time'] )
         label_text += "\r\n"
         label_text += " %12s %4s %4s %12s" % ("Raw", "C", "G", "Score")
