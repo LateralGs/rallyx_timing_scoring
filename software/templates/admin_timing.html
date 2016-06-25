@@ -193,6 +193,7 @@ $(document).ready(function(){
           <option disabled selected>-- Select Entry --</option>
           {% for entry in g.entry_driver_list %}
           <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}]</option>
+          <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
           {% else %}
           <option disabled>None</option>
           {% endfor %}
@@ -236,7 +237,8 @@ $(document).ready(function(){
           <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
           <optgroup label="Entries">
           {% for entry in g.entry_driver_list %}
-          <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}]</option>
+          <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}] </option>
+          <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
           {% else %}
           <option disabled>None</option>
           {% endfor %}
@@ -297,6 +299,7 @@ $(document).ready(function(){
                   <option>None</option>
                   {% for entry in g.entry_driver_list %}
                   <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}]</option>
+                  <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
                   {% endfor %}
                 </select>
               </td>
