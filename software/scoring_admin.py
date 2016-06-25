@@ -242,7 +242,7 @@ def timing_page():
       if run['state'] != 'scored':
         flash("No label printed, run is not in the scored state!", 'warning')
       elif run['entry_id'] is None:
-        print_label("No label printed, entry not assigned to run!", 'warning')
+        flash("No label printed, entry not assigned to run!", 'warning')
       else:
         entry = db.entry_driver_get(run['entry_id'])
 
