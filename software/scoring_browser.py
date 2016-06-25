@@ -58,6 +58,10 @@ def index_page():
   db.reg_inc('.pc_browser_index')
 
   g.active_event_id = db.reg_get_int('active_event_id')
+  
+  if g.active_event_id is None:
+    return "No active event."
+
   g.active_event = db.event_get(g.active_event_id)
   g.max_runs = db.reg_get_int("max_runs", app.config['DEFAULT_MAX_RUNS'])
 
@@ -86,6 +90,10 @@ def finish_page():
   db.reg_inc('.pc_browser_finish')
 
   g.active_event_id = db.reg_get_int('active_event_id')
+
+  if g.active_event_id is None:
+    return "No active event."
+
   g.max_runs = db.reg_get_int("max_runs", app.config['DEFAULT_MAX_RUNS'])
 
   g.latest_runs = []
