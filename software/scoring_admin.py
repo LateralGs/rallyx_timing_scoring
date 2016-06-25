@@ -239,13 +239,12 @@ def timing_page():
 
     if action == 'update_print':
       run = db.run_get(run_id)
+      entry = db.entry_driver_get(run['entry_id'])
       if run['state'] != 'scored':
         flash("No label printed, run is not in the scored state!", 'warning')
-      elif run['entry_id'] is None:
-        flash("No label printed, entry not assigned to run!", 'warning')
+      elif entry is None:
+        flash("No label printed, run not assigned a valid entry!", 'warning')
       else:
-        entry = db.entry_driver_get(run['entry_id'])
-
         if entry['alt_name']:
           entry_name = entry['first_name'] + ' (' + entry['alt_name'] + ') ' + entry['last_name']
         else:
