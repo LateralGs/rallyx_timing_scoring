@@ -19,7 +19,7 @@ CAR_CLASS_NAMES = {
     'TO':'Time Only'}
 
 # rules
-DROP_RUNS = 1
+DROP_RUNS = 2
 MIN_RUNS = 3
 CONE_PENALTY = 2
 GATE_PENALTY = 10
