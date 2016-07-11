@@ -1,8 +1,6 @@
-from serial_handler import SerialHandler, serial_wrapper
-from datetime import timedelta
-import sys
 import logging
 logging.basicConfig()
+from serial_handler import SerialHandler, serial_wrapper
 
 BAUDRATE = 9600
 
@@ -17,8 +15,9 @@ class TagHeuer520(SerialHandler):
     c = self.serial.read(1)
     while c != '':
       if c == '\r':
-        print repr(self.line_buffer)
+        logging.debug(repr(self.line_buffer))
         result = None
+        # TODO add ability to handle other types of time events eg. T-, T+, etc.
         if self.line_buffer.startswith('T ') and len(self.line_buffer) == 30:
           channel = self.line_buffer[12:14].strip()
           time_ms = 0
@@ -34,7 +33,7 @@ class TagHeuer520(SerialHandler):
             return None
           result = (channel, time_ms)
         else:
-            print "bad format"
+            logging.debug('bad time event format')
         self.line_buffer = ""
         return result
       else:
@@ -43,8 +42,9 @@ class TagHeuer520(SerialHandler):
     return None
 
 if __name__ == "__main__":
-    timer = TagHeuer520(sys.argv[1])
-    while True:
-        t = timer.read()
-        if t:
-            print t
+  import sys
+  timer = TagHeuer520(sys.argv[1])
+  while True:
+    t = timer.read()
+    if t:
+      print t
