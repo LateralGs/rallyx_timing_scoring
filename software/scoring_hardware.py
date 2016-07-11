@@ -72,43 +72,6 @@ def tag_heuer_thread():
 
 #######################################
 
-def rallyx_timer_thread():
-  global update_rallyx_timer
-  log = logging.getLogger('rallyx_timer')
-  open_state = True
-  timer = RallyXTimer()
-  while True:
-    if timer.is_open():
-      time_data = timer.read() # None or (channel, time_ms)
-      if time_data is not None:
-        event_queue.put(('time_data', time_data))
-      elif update_rallyx_timer:
-        update_rallyx_timer = False
-        timer.set_debounce(debounce_ms)
-        timer.set_deadtime(deadtime_ms)
-      else:
-        sleep(0.1)
-    elif timer.open(config.SERIAL_PORT_RALLYX_TIMER):
-      timer.set_debounce(debounce_ms)
-      timer.set_deadtime(deadtime_ms)
-      now = datetime.datetime.now()
-      # wrap time at 4am instead of midnight since we may be racing at midnight ;)
-      time_ms = (24 + now.hour) * 60 * 60 * 1000 if now.hour < 4 else now.hour * 60 * 60 * 1000
-      time_ms += now.minute * 60 * 1000
-      time_ms += now.second * 1000
-      time_ms += now.microsecond / 1000
-      timer.set_time(time_ms)
-      event_queue.put(('rallyx_timer_status', 'Open'))
-      open_state = True
-    elif open_state:
-      event_queue.put(('rallyx_timer_status', 'Closed'))
-      open_state = False
-      sleep(1)
-    else:
-      sleep(1)
-
-#######################################
-
 def rfid_thread():
   log = logging.getLogger('rfid')
   rfid_reader = RFIDReader()
@@ -158,13 +121,11 @@ def watchdog_thread():
     for t in active_threads:
       if t.name == 'scanner':
         scanner_watchdog = True
-      elif t.name == 'rallyx_timer':
-        rallyx_timer_watchdog = True
       elif t.name == 'tag_heuer':
         tag_heuer_watchdog = True
       elif t.name == 'rfid':
         rfid_watchdog = True
-    if scanner_watchdog and rallyx_timer_watchdog and tag_heuer_watchdog and rfid_watchdog:
+    if scanner_watchdog and tag_heuer_watchdog and rfid_watchdog:
       event_queue.put(('watchdog', time()))
       timeout_msg = True
     elif timeout_msg:
@@ -185,19 +146,16 @@ if __name__ == '__main__':
   # start threads for talking to hardware
   scanner_thread_obj = threading.Thread(target=scanner_thread, name="scanner")
   tag_heuer_thread_obj = threading.Thread(target=tag_heuer_thread, name="tag_heuer")
-  rallyx_timer_thread_obj = threading.Thread(target=rallyx_timer_thread, name="rallyx_timer")
   rfid_thread_obj = threading.Thread(target=rfid_thread, name="rfid")
   watchdog_thread_obj = threading.Thread(target=watchdog_thread, name="watchdog")
 
   scanner_thread_obj.daemon = True
   tag_heuer_thread_obj.daemon = True
-  rallyx_timer_thread_obj.daemon = True
   rfid_thread_obj.daemon = True
   watchdog_thread_obj.daemon = True
 
   scanner_thread_obj.start()
   tag_heuer_thread_obj.start()
-  rallyx_timer_thread_obj.start()
   rfid_thread_obj.start()
   watchdog_thread_obj.start()
 
@@ -293,8 +251,6 @@ if __name__ == '__main__':
             play_sound("sounds/OutputComplete.wav")
       elif evt_type == 'rfid_status':
         db.reg_set('rfid_status',evt_data)
-      elif evt_type == 'rallyx_timer_status':
-        db.reg_set('rallyx_timer_status', evt_data)
       elif evt_type == 'tag_heuer_status':
         db.reg_set('tag_heuer_status', evt_data)
       elif evt_type == 'scanner_status':
