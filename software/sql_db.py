@@ -3,117 +3,8 @@ import threading
 import logging
 from util import format_time, time_cmp
 
-# any schema change that requires a migration should increment the schema version
-# A coresponding X to Y migration function should be created to update between consecutive verions
-SCHEMA_VERSION = 1
-
-# global key/value data, config data, state, etc.
-# this table should never change its definition
-DROP_REGISTRY_TABLE = "DROP TABLE IF EXISTS registry;"
-CREATE_REGISTRY_TABLE = """
-    CREATE TABLE IF NOT EXISTS registry (
-      key   TEXT PRIMARY KEY NOT NULL,
-      value TEXT
-    );
-"""
-
-# driver info
-DROP_DRIVERS_TABLE = "DROP TABLE IF EXISTS drivers;"
-CREATE_DRIVERS_TABLE = """
-    CREATE TABLE IF NOT EXISTS drivers (
-      driver_id       INTEGER PRIMARY KEY,
-      first_name      TEXT,
-      last_name       TEXT,
-      alt_name        TEXT,
-      msreg_number    TEXT,
-      scca_number     TEXT,
-      license_number  TEXT,
-      addr_line_1     TEXT,
-      addr_line_2     TEXT,
-      addr_city       TEXT,
-      addr_state      TEXT,
-      addr_zip        TEXT,
-      phone           TEXT,
-      email           TEXT,
-      license_data    TEXT, -- decoded data from barcode on drivers license
-      driver_note     TEXT
-    );
-"""
-
-# entries are drivers competing in an event
-DROP_ENTRIES_TABLE = "DROP TABLE IF EXISTS entries"
-CREATE_ENTRIES_TABLE = """
-    CREATE TABLE IF NOT EXISTS entries (
-      entry_id        INTEGER PRIMARY KEY,
-      event_id        INT NOT NULL,
-      driver_id       INT NOT NULL,
-      rfid_number     TEXT,
-      dual_driver     INT NOT NULL DEFAULT 0,
-      car_year        TEXT,
-      car_make        TEXT,
-      car_model       TEXT,
-      car_color       TEXT,
-      car_number      TEXT NOT NULL DEFAULT '0',
-      car_class       TEXT NOT NULL DEFAULT 'TO',
-      season_points   INT NOT NULL DEFAULT 1,
-      work_assign     TEXT,
-      entry_note      TEXT,
-      event_time_ms   INT,
-      event_time      TEXT,
-      scored_runs     INT NOT NULL DEFAULT 0,
-      show_scores     INT NOT NULL DEFAULT 1 -- should the scores be publicly visible
-    );
-"""
-
-DROP_RUNS_TABLE = "DROP TABLE IF EXISTS runs;"
-CREATE_RUNS_TABLE = """
-    CREATE TABLE IF NOT EXISTS runs (
-      run_id          INTEGER PRIMARY KEY,
-      event_id        INT NOT NULL,
-      entry_id        INT,
-      cones           INT,
-      gates           INT,
-      start_time_ms   INT,  -- 0 == DNS
-      finish_time_ms  INT,  -- 0 == DNF
-      state           TEXT, -- started, finished, scored, tossout
-      raw_time_ms     INT,
-      total_time_ms   INT,
-      raw_time        TEXT,
-      total_time      TEXT,
-      drop_run        INT NOT NULL DEFAULT 0,
-      run_count       INT,
-      run_note        TEXT
-    );
-"""
-
-# times from timing equipment at start/finish
-DROP_TIMES_TABLE = "DROP TABLE IF EXISTS times;"
-CREATE_TIMES_TABLE = """
-    CREATE TABLE IF NOT EXISTS times (
-      time_id       INTEGER PRIMARY KEY,
-      event_id      INT,
-      channel       TEXT,
-      time_ms       INT,
-      invalid       INT NOT NULL DEFAULT 0,
-      time_note     TEXT
-    );
-"""
-
-DROP_EVENTS_TABLE = "DROP TABLE IF EXISTS events;"
-CREATE_EVENTS_TABLE = """
-    CREATE TABLE IF NOT EXISTS events (
-      event_id      INTEGER PRIMARY KEY,
-      name          TEXT,
-      location      TEXT,
-      organization  TEXT,
-      date          TEXT, -- RFC3339 format date YYYY-MM-DD
-      season        TEXT,
-      national      INT DEFAULT 0,
-      season_points INT DEFAULT 1,
-      visible       INT DEFAULT 1, -- Is this event visible in the scoring browser
-      event_note    TEXT
-    );
-"""
+# this number should match the schema_versions/version_NNN.sql file name used to init the db
+SCHEMA_VERSION = 2
 
 #######################################
 #######################################
@@ -159,7 +50,7 @@ class ScoringDatabase(object):
     self.con.row_factory = sqlite3.Row
     try:
       version = self.reg_get_int(".schema_version")
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
       self.init_schema()
     else:
       if version is None:
@@ -206,30 +97,10 @@ class ScoringDatabase(object):
     return row[0] if row else None
 
   @db_thread_lock
-  def drop_schema(self, confirm):
-    cur = self.con.cursor()
-    if confirm == "yes":
-      cur.execute(DROP_REGISTRY_TABLE)
-      cur.execute(DROP_DRIVERS_TABLE)
-      cur.execute(DROP_ENTRIES_TABLE)
-      cur.execute(DROP_RUNS_TABLE)
-      cur.execute(DROP_TIMES_TABLE)
-      cur.execute(DROP_EVENTS_TABLE)
-      # add lines for dropping tables here
-      # ...
-    self.con.commit()
-
-  @db_thread_lock
   def init_schema(self):
     cur = self.con.cursor()
-    cur.execute(CREATE_REGISTRY_TABLE)
-    cur.execute(CREATE_DRIVERS_TABLE)
-    cur.execute(CREATE_ENTRIES_TABLE)
-    cur.execute(CREATE_RUNS_TABLE)
-    cur.execute(CREATE_TIMES_TABLE)
-    cur.execute(CREATE_EVENTS_TABLE)
-    # add lines for creating tables here
-    # ...
+    with open("schema_versions/version_%03d.sql" % SCHEMA_VERSION) as sql_file:
+      cur.executescript(sql_file.read())
     self.con.commit()
 
     # default registry settings
@@ -244,6 +115,7 @@ class ScoringDatabase(object):
     self.columns['runs'] = self.table_columns('runs')
     self.columns['times'] = self.table_columns('times')
     self.columns['events'] = self.table_columns('events')
+    self.columns['penalties'] = self.table_columns('penalties')
     # add any new tables here
     # ...
 
@@ -401,6 +273,11 @@ class ScoringDatabase(object):
     self.con.commit()
     return rowid
 
+  def penalty_insert(self, entry_id, time_ms, note=None):
+    rowid = self.con.execute("INSERT INTO penalties (entry_id, time_ms, penalty_note) VALUES (?,?,?)", (entry_id, time_ms, note)).lastrowid
+    self.con.commit()
+    return rowid
+
   #### DELETE ####
   
   def driver_delete(self, driver_id):
@@ -428,6 +305,10 @@ class ScoringDatabase(object):
 
   def time_delete(self, time_id):
     self.con.execute("DELETE FROM times WHERE time_id=?", (time_id,))
+    self.con.commit()
+  
+  def time_delete(self, penalty_id):
+    self.con.execute("DELETE FROM penalties WHERE penalty_id=?", (penalty_id,))
     self.con.commit()
 
   #### UPDATE ####
@@ -494,6 +375,18 @@ class ScoringDatabase(object):
     self.con.execute("UPDATE times SET %s WHERE time_id=?" % ",".join(map(lambda k: "%s=?" % k, sql_keys)), sql_values + [time_id])
     self.con.commit()
 
+  def penalty_update(self, penalty_id, **kwargs):
+    sql_keys = []
+    sql_values = []
+    for key,value in kwargs.items():
+      if key in self.columns['penalties'] and key != 'penalty_id':
+        sql_keys.append(key)
+        sql_values.append(value)
+      else:
+        self.log.warning("invalid key: %r", key)
+    self.con.execute("UPDATE penalties SET %s WHERE penalty_id=?" % ",".join(map(lambda k: "%s=?" % k, sql_keys)), sql_values + [penalty_id])
+    self.con.commit()
+
   #### QUERY ####
   
   def driver_exists(self, driver_id):
@@ -525,6 +418,9 @@ class ScoringDatabase(object):
   
   def time_get(self, time_id):
     return self.con.execute("SELECT * FROM times WHERE time_id=? LIMIT 1", (time_id,)).fetchone()
+
+  def penalty_get(self, penalty_id):
+    return self.con.execute("SELECT * FROM penalties WHERE penalty_id=? LIMIT 1", (penalty_id,)).fetchone()
 
   def driver_by_msreg(self, msreg_number):
     return self.con.execute("SELECT * FROM drivers WHERE msreg_number=? LIMIT 1", (msreg_number,)).fetchone()
@@ -597,15 +493,27 @@ class ScoringDatabase(object):
       return self.con.execute("SELECT * FROM times WHERE event_id=? AND NOT invalid ORDER BY rowid DESC LIMIT ?", (event_id, limit)).fetchall()
     else:
       return self.con.execute("SELECT * FROM times WHERE event_id=? ORDER BY rowid DESC LIMIT ?", (event_id, limit)).fetchall()
+  
+  def penalty_list(self, event_id):
+    return self.con.execute("SELECT penalties.* FROM penalties, entries WHERE penalties.entry_id=entries.entry_id AND entries.event_id=?", (event_id,)).fetchall()
+
+  def entry_penalty_list(self, entry_id):
+    return self.con.execute("SELECT * FROM penalties WHERE entry_id=?", (entry_id,)).fetchall()
+
+  def entry_penalty_total(self, entry_id):
+    return int(self.con.execute("SELECT total(time_ms) FROM penalties WHERE entry_id=?", (entry_id,)).fetchone()[0])
 
   def event_list(self):
-    return self.con.execute("SELECT * FROM events ORDER BY date DESC").fetchall()
+    return self.con.execute("SELECT * FROM events ORDER BY event_date DESC").fetchall()
 
   def driver_by_entry(self, entry_id):
     return self.con.execute("SELECT drivers.* FROM drivers, event_entries WHERE driver.driver_id=event_entries.driver_id AND event_entries.entry_id=? LIMIT 1", (entry_id,)).fetchone()
 
-  def entry_by_rfid(self, event_id, rfid_number):
-    return self.con.execute("SELECT * FROM entries WHERE event_id=? AND rfid_number=? LIMIT 1", (event_id, rfid_number)).fetchone()
+  def entry_by_card(self, event_id, card_number):
+    return self.con.execute("SELECT entries.* FROM entries, drivers WHERE entries.driver_id=drivers.driver_id AND entries.event_id=? AND drivers.card_number=? LIMIT 1", (event_id, card_number)).fetchone()
+
+  def driver_by_card(self, card_number):
+    return self.con.execute("SELECT * FROM drivers WHERE card_number=? LIMIT 1", (card_number,)).fetchone()
 
   def run_started(self, event_id, time_ms, entry_id):
     rowid = self.con.execute("INSERT INTO runs (event_id, start_time_ms, entry_id, state) VALUES (?,?,?,'started')", (event_id, time_ms, entry_id)).lastrowid
@@ -613,7 +521,7 @@ class ScoringDatabase(object):
     return rowid
 
   def run_finished(self, event_id, time_ms):
-    # TODO FIXME there needs to be better transaction control here
+    # TODO FIXME there needs to be better transaction control here?
     cur = self.con.cursor()
     row = cur.execute("SELECT run_id FROM runs WHERE event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' ORDER BY run_id ASC LIMIT 1", (event_id, time_ms)).fetchone()
     if row is None:
@@ -621,6 +529,12 @@ class ScoringDatabase(object):
     cur.execute("UPDATE runs SET finish_time_ms=?, state='finished' WHERE run_id = ?", (time_ms, row['run_id']))
     self.con.commit()
     return row['run_id']
+
+  def run_split_1(self, event_id, time_ms):
+    pass # TODO like run_finished find next run to update split 1
+
+  def run_split_2(self, event_id, time_ms):
+    pass # TODO like run_finished find next run to update split 2
 
   def run_count(self, event_id, entry_id=None, state_filter=None, max_run_id=None):
     sql = "SELECT count(*) FROM runs WHERE event_id=? "
@@ -646,91 +560,6 @@ class ScoringDatabase(object):
     self.log.debug(args)
 
     return self.con.execute(sql, args).fetchone()[0]
-
-
-  def run_recalc(self, run_id, cone_penalty=2, gate_penalty=10):
-    run = self.run_get(run_id)
-    if run is None:
-      return
-    raw_time = None
-    total_time = None
-    raw_time_ms = None
-    total_time_ms = None
-    run_count = None
-    if run['start_time_ms'] == 0:
-      raw_time = "DNS"
-      total_time = "DNS"
-    elif run['finish_time_ms'] == 0:
-      raw_time = "DNF"
-      total_time = "DNF"
-    elif run['start_time_ms'] is None:
-      pass
-    elif run['finish_time_ms'] is None:
-      pass
-    elif run['finish_time_ms'] <= run['start_time_ms']:
-      raw_time = "INVALID"
-      total_time = "INVALID"
-    else:
-      total_time_ms = raw_time_ms = run['finish_time_ms'] - run['start_time_ms']
-      if run['cones']:
-        total_time_ms += run['cones'] * cone_penalty * 1000 # penalty is in seconds, we need milliseconds
-      if run['gates']:
-        total_time_ms += run['gates'] * gate_penalty * 1000 # penalty is in seconds, we need milliseconds
-      raw_time = format_time(raw_time_ms)
-      total_time = format_time(total_time_ms)
-
-    if run['entry_id'] is not None:
-      run_count = self.run_count(run['event_id'], run['entry_id'], state_filter=('scored','started','finished'), max_run_id=run_id)
-
-    self.run_update(run_id, raw_time=raw_time, total_time=total_time, raw_time_ms=raw_time_ms, total_time_ms=total_time_ms, run_count=run_count)
-
-  def entry_recalc(self, entry_id, min_runs, max_runs, max_drop):
-    # calculate event_time_ms, event_time and drop runs
-    entry_runs = self.run_list(entry_id=entry_id, state_filter=('scored',))
-    self.log.debug(entry_runs)
-
-    dropped_runs = []
-    scored_runs = []
-
-    # make sure we only drop if we are more than min runs
-    max_drop = min(max_drop, max_runs-min_runs)
-
-    # drop runs that are beyond max_runs
-    for i in range(len(entry_runs)):
-      if i >= max_runs:
-        dropped_runs.append(entry_runs[i])
-      else:
-        scored_runs.append(entry_runs[i])
-
-    scored_run_count = len(scored_runs)
-
-    self.log.debug("scored: %r", scored_runs)
-    self.log.debug("dropped: %r", dropped_runs)
-
-    # sort runs then find out which runs we drop
-    scored_runs.sort(cmp=time_cmp, key=lambda r: r['total_time_ms'])
-    dropped_runs += scored_runs[max_runs-max_drop:]
-    del scored_runs[max_runs-max_drop:]
-
-    event_time_ms = 0
-    event_time = None
-    for run in scored_runs:
-      if run['start_time_ms'] == 0 or run['finish_time_ms'] == 0:
-        event_time_ms = None
-        event_time = "DNF"
-        break;
-      elif run['total_time_ms']:
-        event_time_ms += run['total_time_ms']
-    event_time = format_time(event_time_ms)
-
-    self.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, scored_runs=scored_run_count)
-    
-    for run in entry_runs:
-      if run in dropped_runs:
-        self.run_update(run_id=run['run_id'], drop_run=1)
-      else:
-        self.run_update(run_id=run['run_id'], drop_run=0)
-
 
 
 #######################################

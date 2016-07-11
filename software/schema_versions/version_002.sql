@@ -60,14 +60,16 @@ CREATE TABLE IF NOT EXISTS runs (
   total_time_ms   INT,
   raw_time        TEXT,
   total_time      TEXT,
-  drop_run        INT NOT NULL DEFAULT 0,
+  drop_run        INT NOT NULL DEFAULT 0, -- used for regions that have drop runs
   run_count       INT,
   run_note        TEXT,
   
   split_1_time_ms INT, -- split times
   split_2_time_ms INT,
-  split_1_time    TEXT,
-  split_2_time    TEXT,
+
+  sector_1_time   TEXT, -- split_1 - start
+  sector_2_time   TEXT, -- split_2 - split_1
+  sector_3_time   TEXT  -- finish - split_2
 );
 
 CREATE TABLE IF NOT EXISTS times (
@@ -84,17 +86,16 @@ CREATE TABLE IF NOT EXISTS events (
   name          TEXT,
   location      TEXT,
   organization  TEXT,
-  date          TEXT, -- RFC3339 format date YYYY-MM-DD
-  season        TEXT,
-  rule_set      TEXT, -- selects which ScoringRules instance to use
+  event_date    TEXT, -- RFC3339 format date YYYY-MM-DD
+  season_name   TEXT,
   season_points INT DEFAULT 1,
   visible       INT DEFAULT 1, -- Is this event publicly visible
   event_note    TEXT,
   max_runs      INT DEFAULT 3,
-  drop_runs     INT DEFAULT 0,
+  drop_runs     INT DEFAULT 0  -- just in case we need to calc it per event
 );
 
--- entry per event penalties (not cones/gates)
+-- per event penalties (not cones/gates)
 CREATE TABLE IF NOT EXISTS penalties (
   penalty_id    INTEGER PRIMARY KEY,
   entry_id      INT NOT NULL,

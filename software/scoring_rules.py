@@ -7,10 +7,10 @@
 
 class BasicRules(ScoringRules):
   """ Basic RallyX rules with no drop runs """
-  def __init__(self, max_runs):
+  def __init__(self, max_runs=5):
     self.cone_penalty = 2
     self.gate_penalty = 10
-    self.max_runs = 5
+    self.max_runs = max_runs
     self.car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR']
     self.car_class_names = {
       'SA':'Stock All',
@@ -111,8 +111,8 @@ class BasicRules(ScoringRules):
 
 class ORG_Rules(BasicRules):
   """ Oregon Rally Group rules based on 2016 SCCA RallyX rules and regional supplimental rules """
-  def __init__(self, *arg, **kwarg):
-    super(ORG_Rules,self).__init__(*arg, **kwarg)
+  def __init__(self, max_runs=5, max_drop_runs=1):
+    super(ORG_Rules,self).__init__(max_runs)
     self.max_drop_runs = 1
     self.max_drop_events = 1
     self.min_runs = 3 # only drop runs if we are above min_runs
