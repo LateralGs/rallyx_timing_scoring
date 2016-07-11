@@ -1,4 +1,5 @@
 *.pyc
 *.db
 *.csv
+*.swp
 secret_key.py
