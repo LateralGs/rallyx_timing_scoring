@@ -3,6 +3,8 @@ import threading
 import logging
 from util import format_time, time_cmp
 
+# any schema change that requires a migration should increment the schema version
+# A coresponding X to Y migration function should be created to update between consecutive verions
 SCHEMA_VERSION = 1
 
 # global key/value data, config data, state, etc.
@@ -130,6 +132,9 @@ def dict_factory(cursor, row):
     d[col[0]] = row[idx]
   return d
 
+def SchemaVersionException(Exception):
+  pass
+
 #######################################
 
 class ScoringDatabase(object):
@@ -152,8 +157,17 @@ class ScoringDatabase(object):
       self.con.close()
     self.con = sqlite3.connect(path, check_same_thread=False)
     self.con.row_factory = sqlite3.Row
-    self.init_schema()
-    self.log.debug("isolation_level = %r" % self.con.isolation_level)
+    try:
+      version = self.reg_get_int(".schema_version")
+    except sqlite3.OperationalError:
+      self.init_schema()
+    else:
+      if version is None:
+        self.init_schema()
+      elif version != SCHEMA_VERSION:
+        raise SchemaVersionException("db_file=%r, software=%r" % (version, SCHEMA_VERSION))
+    self.init_columns()
+
 
   @db_thread_lock
   def close(self):
@@ -217,14 +231,21 @@ class ScoringDatabase(object):
     # add lines for creating tables here
     # ...
     self.con.commit()
+
+    # default registry settings
+    self.reg_set_default('.schema_version', SCHEMA_VERSION)
+
+  def init_columns(self):
+    # read column names from database
+    # FIXME maybe set these to be static based on constants defined?
     self.columns['registry'] = self.table_columns('registry')
     self.columns['drivers'] = self.table_columns('drivers')
     self.columns['entries'] = self.table_columns('entries')
     self.columns['runs'] = self.table_columns('runs')
     self.columns['times'] = self.table_columns('times')
     self.columns['events'] = self.table_columns('events')
-    # default registry settings
-    self.reg_set_default('.schema_version', SCHEMA_VERSION)
+    # add any new tables here
+    # ...
 
   def table_names(self):
     return map(lambda row: row['name'], self.con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall())
@@ -508,6 +529,9 @@ class ScoringDatabase(object):
   def driver_by_msreg(self, msreg_number):
     return self.con.execute("SELECT * FROM drivers WHERE msreg_number=? LIMIT 1", (msreg_number,)).fetchone()
 
+  def driver_by_card_number(self, card_number):
+    return self.con.execute("SELECT * FROM drivers WHERE card_number=? LIMIT 1", (card_number,)).fetchone()
+
   def entry_by_driver(self, event_id, driver_id):
     return self.con.execute("SELECT * FROM entries WHERE event_id=? AND driver_id=? LIMIT 1", (event_id, driver_id)).fetchone()
 
@@ -522,6 +546,9 @@ class ScoringDatabase(object):
 
   def entry_list(self, event_id):
     return self.con.execute("SELECT * FROM entries WHERE event_id=?", (event_id,)).fetchall()
+  
+  def entry_id_list(self, event_id):
+    return self.con.execute("SELECT entry_id FROM entries WHERE event_id=?", (event_id,)).fetchall()
   
   def entry_driver_list(self, event_id):
     return self.con.execute("SELECT * FROM entries, drivers WHERE entries.driver_id=drivers.driver_id AND event_id=? ORDER BY entries.car_class, entries.car_number, drivers.last_name", (event_id,)).fetchall()

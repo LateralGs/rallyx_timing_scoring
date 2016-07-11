@@ -20,10 +20,9 @@ CREATE TABLE IF NOT EXISTS drivers (
   addr_zip        TEXT,
   phone           TEXT,
   email           TEXT,
-  license_data    TEXT, -- decoded data from barcode on drivers license
   driver_note     TEXT,
 
-  card_number     TEXT -- unique driver card number
+  card_number     TEXT -- unique driver card number (rfid, barcode, etc.)
 );
 
 CREATE TABLE IF NOT EXISTS entries (
@@ -44,7 +43,8 @@ CREATE TABLE IF NOT EXISTS entries (
   event_time      TEXT,
   event_points    INT, -- season points for this event
   scored_runs     INT NOT NULL DEFAULT 0,
-  visible         INT NOT NULL DEFAULT 1 -- should the scores be publicly visible
+  visible         INT NOT NULL DEFAULT 1, -- should the scores be publicly visible
+  checked_in      INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS runs (
@@ -64,14 +64,10 @@ CREATE TABLE IF NOT EXISTS runs (
   run_count       INT,
   run_note        TEXT,
   
-  sector_1_time_ms INT, -- sector times
-  sector_2_time_ms INT,
-  sector_3_time_ms INT,
-  sector_4_time_ms INT,
-  sector_1_time    TEXT,
-  sector_2_time    TEXT,
-  sector_3_time    TEXT,
-  sector_4_time    TEXT
+  split_1_time_ms INT, -- split times
+  split_2_time_ms INT,
+  split_1_time    TEXT,
+  split_2_time    TEXT,
 );
 
 CREATE TABLE IF NOT EXISTS times (
