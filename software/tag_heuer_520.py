@@ -41,6 +41,7 @@ class TagHeuer520(SerialHandler):
       c = self.serial.read(1)
     return None
 
+
 if __name__ == "__main__":
   import sys
   timer = TagHeuer520(sys.argv[1])
@@ -48,3 +49,4 @@ if __name__ == "__main__":
     t = timer.read()
     if t:
       print t
+

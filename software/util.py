@@ -46,9 +46,9 @@ def json_query(url):
 
 #######################################
 
-def parse_time(time_str):
+def parse_time_ex(time_str):
   if not isinstance(time_str, types.StringTypes):
-    return None
+    raise TypeError()
   time_str = time_str.strip()
   if time_str == '':
     return None
@@ -78,7 +78,9 @@ def parse_time(time_str):
     time_ms += int(s) * (1000)
     time_ms += int(ms + ('0' * (3-len(ms))))
     return time_ms
-  return None
+  raise ValueError()
+
+#######################################
 
 def format_time(time_ms, dnf_str='DNF',hms=True):
   if isinstance(time_ms, types.StringTypes):
@@ -134,6 +136,26 @@ def clean_str(s):
 def time_cmp(a,b):
   util_log.debug("cmp: %r, %r", a, b)
   if a in (0,None) and b in (0,None):
+    return 0
+  elif a in (0,None):
+    return 1
+  elif b in (0,None):
+    return -1
+  elif a < b:
+    return -1
+  elif a > b:
+    return 1
+  else:
+    return 0
+
+#######################################
+
+def entry_cmp(a,b):
+  if a['scored_runs'] < b['scored_runs']:
+    return 1
+  elif a['scored_runs'] > b['scored_runs']:
+    return -1
+  elif a in (0,None) and b in (0,None):
     return 0
   elif a in (0,None):
     return 1

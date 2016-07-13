@@ -4,12 +4,9 @@ from cStringIO import StringIO
 
 BAUDRATE = 9600
 
-CODE_ID_PDF417 = 'r'
-CODE_ID_DATAMATRIX = 'w'
-CODE_ID_QRCODE = 's'
-
 class ReadTimeout(Exception):
   pass
+
 
 def read_timeout_ex(s,n=1):
   s = s.read(n)
@@ -17,6 +14,7 @@ def read_timeout_ex(s,n=1):
     raise ReadTimeout()
   else:
     return s
+
 
 def decode_license(data):
   try:
@@ -48,35 +46,21 @@ def decode_license(data):
   except:
     return None
 
+
 class BarcodeScanner(SerialHandler):
   def __init__(self, port=None):
     super(BarcodeScanner,self).__init__(port, BAUDRATE)
 
   @serial_wrapper
-  def read(self, timeout=None):
-    """ Read barcode from scanner
-
-      This function expects the scanner to be configured to have the prefix '\xff' followed by a single character code id.
-      The function also expects the data to have a null terminated suffix.  These both help frame the data and know what the source was.
-    """
-
-    if timeout:
-      self.serial.timeout = timeout
-    try:
-      while read_timeout_ex(self.serial) != '\xff':
-        pass
-      bc_type = read_timeout_ex(self.serial)
-      bc_data = ""
-      while True:
-        c = read_timeout_ex(self.serial)
-        if c == '\0':
-          return (bc_type, bc_data)
-        else:
-          bc_data += c
-    except ReadTimeout:
+  def read(self, timeout=1):
+    # use the fact that we can poll the scanner faster than it will return sequential barcodes
+    # we can then use the timeout to frame the input data
+    self.serial.timeout = timeout
+    barcode = self.serial.read()
+    if len(barcode) > 0:
+      return barcode
+    else:
       return None
-
-
 
 
 if __name__ == "__main__":

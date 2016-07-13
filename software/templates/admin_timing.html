@@ -134,16 +134,16 @@ $(document).ready(function(){
       <p style="color: red"><b>Hardware watchdog timed out!</b></p>
       <p>Check scoring hardware process.</p>
       {% else %}
-      <p><label>RallyX Timer:</label><b>{{g.rallyx_timer_status}}</b></p>
       <p><label>Tag Heuer 520:</label><b>{{g.tag_heuer_status}}</b></p>
       <p><label>Scanner:</label><b>{{g.scanner_status}}</b></p>
-      <p><label>RFID Reader:</label><b>{{g.rfid_status}}</b></p>
+      <p><label>USB RFID Reader:</label><b>{{g.usb_rfid_status}}</b></p>
+      <p><label>Wireless RFID Reader:</label><b>{{g.wireless_rfid_status}}</b></p>
       {% endif %}
     </div>
 
     <div class="layout_box">
       <h2>Time Events</h2>
-      Last {{g.max_time_events}} shown
+      Last {{g.disp_time_events}} shown
       <table class="simple">
         <tr>
           <th>Channel</th>
@@ -182,8 +182,8 @@ $(document).ready(function(){
     <table class="layout"><tr><td>
     <div class="layout_box" style="padding-left: 16px; padding-right:16px">
       {% if g.next_entry_driver %}
-      <h2>Next: {{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}} [{{g.next_entry_driver.entry_id}}]</h2>
-      <h2>Run: {{g.next_entry_run_count+1}} <span style="color: red">{{'LAST RUN!' if g.next_entry_run_count+1 == g.max_runs}}{{'EXTRA RUN!' if g.next_entry_run_count >= g.max_runs}}</span></h2>
+      <h2>Next: {{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}}</h2>
+      <h2>Run: {{g.next_entry_run_count+1}} <span style="color: red">{{'LAST RUN!' if g.next_entry_run_count+1 == g.active_event['max_runs']}}{{'EXTRA RUN!' if g.next_entry_run_count >= g.active_event['max_runs']}}</span></h2>
       {% else %}
       <h2>Next: None</h2>
       <h2>Run:</h2>
@@ -192,7 +192,7 @@ $(document).ready(function(){
         <select name="next">
           <option disabled selected>-- Select Entry --</option>
           {% for entry in g.entry_driver_list %}
-          <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}]</option>
+          <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
           <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
           {% else %}
           <option disabled>None</option>
@@ -214,44 +214,51 @@ $(document).ready(function(){
       </div>
     </td><td>
     <div class="layout_box" style="padding-left: 16px; padding-right:16px">
-      <h2>Max Runs: {{g.max_runs}}</h2>
-      <h2>&nbsp;</h2>
+      <h2>Max Runs: {{g.active_event.max_runs}}</h2>
+      <h2>Drop Runs: {{g.active_event.drop_runs}}</h2>
       <form action="{{url_for('timing_page')}}"  method="POST">
         <select name="max_runs">
-          <option disabled selected></option>
-          {% for i in range(config.MIN_RUNS,21)%}
+          <option selected disabled>&nbsp;</option>
+          {% for i in range(g.rules.min_runs, 21) %}
           <option>{{i}}</option>
           {% endfor %}
         </select>
-        <button type="submit" name="action" value="set_max_runs">Set</button>
+        <button type="submit" name="action" value="set_max_runs">Set Max Runs</button>
       </form>
+
     </div>
     </td></tr></table>
 
     <div class="layout_box">
-      <div>
-        <form action="{{url_for('timing_page')}}"  method="POST">
-        Filter:
-        <select name="entry_filter">
-          <option value="all" {{'selected' if session.entry_filter=='all'}}>All</option>
-          <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
-          <optgroup label="Entries">
-          {% for entry in g.entry_driver_list %}
-          <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}] </option>
-          <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
-          {% else %}
-          <option disabled>None</option>
-          {% endfor %}
-          </optgroup>
-        </select>&nbsp;&nbsp;
-        <label><input type="checkbox" name="started_filter" {{'checked' if session.started_filter}} />Started</label>
-        <label><input type="checkbox" name="finished_filter" {{'checked' if session.finished_filter}} />Finished</label>
-        <label><input type="checkbox" name="scored_filter" {{'checked' if session.scored_filter}} />Scored</label>
-        <label><input type="checkbox" name="tossout_filter" {{'checked' if session.tossout_filter}} />TossOut</label>&nbsp;&nbsp;
-        <button type="submit" name="action" value="set_filter">Set Filter</button>
-        <button type="submit" name="action" value="reset_filter">Reset Filter</button>
-        </form>
-      </div>
+      <form action="{{url_for('timing_page')}}"  method="POST">
+      Filter:
+      <select name="entry_filter">
+        <option value="all" {{'selected' if session.entry_filter=='all'}}>All</option>
+        <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
+        <optgroup label="Entries">
+        {% for entry in g.entry_driver_list %}
+        <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}} >{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+        <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
+        {% else %}
+        <option disabled>None</option>
+        {% endfor %}
+        </optgroup>
+      </select>&nbsp;
+      Limit:
+      <select name="run_limit">
+        {% for i in range(5,101,5) %}
+        <option {{'selected' if session.run_limit == i}}>{{i}}</option>
+        {% endfor %}
+      </select>&nbsp;&nbsp;
+      <label><input type="checkbox" name="started_filter" {{'checked' if session.started_filter}} />Started</label>
+      <label><input type="checkbox" name="finished_filter" {{'checked' if session.finished_filter}} />Finished</label>
+      <label><input type="checkbox" name="scored_filter" {{'checked' if session.scored_filter}} />Scored</label>
+      <label><input type="checkbox" name="tossout_filter" {{'checked' if session.tossout_filter}} />TossOut</label>&nbsp;&nbsp;
+      <button type="submit" name="action" value="set_filter">Set Filter</button>
+      <button type="submit" name="action" value="reset_filter">Clear Filter</button>
+      </form>
+    </div>
+    <div class="layout_box">
       {% for run in g.run_list %}
       <a name="{{run.run_id}}" />
         <div class="run {{run.state}}" id="{{run.run_id}}">
@@ -261,13 +268,12 @@ $(document).ready(function(){
           <table class="layout">
             <tr>
             <!-- START FIRST ROW -->
-              <td>[{{run.run_id}}]</td>
               <td class="nowrap">
-                <input type="text" class="start_time" name="start_time" pattern="\s*((DNS)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.start_time_ms|format_time('DNS')}}" size="12" title="[[HH:]MM:]SS.sss or DNS" />
+                <input type="text" class="start_time" name="start_time" pattern="\s*((\s)|(DNS)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.start_time_ms|format_time('DNS')}}" size="12" title="[[HH:]MM:]SS.sss or DNS" />
                 <input type="button" value="DNS" class="run_dns"/>&nbsp;
               </td>
               <td class="nowrap">
-                <input type="text" class="finish_time" name="finish_time" pattern="\s*((DNF)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.finish_time_ms|format_time('DNF') if run.state != 'started'}}" size="12" title="[[HH:]MM:]SS.sss or DNF" {{'disabled' if run.state == 'started'}} />
+                <input type="text" class="finish_time" name="finish_time" pattern="\s*((\s)|(DNF)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.finish_time_ms|format_time('DNF') if run.state != 'started'}}" size="12" title="[[HH:]MM:]SS.sss or DNF" {{'disabled' if run.state == 'started'}} />
                 <input type="button" value="DNF" class="run_dnf" {{'disabled' if run.state == 'started'}} />&nbsp;
               </td>
               <td><input type="text" size="4" value="{{run.run_count if run.run_count}}" disabled /></td>
@@ -287,36 +293,35 @@ $(document).ready(function(){
                 <button type="submit" class="run_save" name="action" value="update">Save</button>
               </td>
               
-              <td><!-- last colum to shrink the rest --></td>
-
             <!-- END FIRST ROW -->
             </tr><tr>
             <!-- START SECOND ROW -->
-              <td></td>
-              <td colspan="2">
-                <select name="entry_id" class="entry_select">
-                  <option disabled selected>-- Select Entry --</option>
-                  <option>None</option>
-                  {% for entry in g.entry_driver_list %}
-                  <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}} [{{entry.entry_id}}]</option>
-                  <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
-                  {% endfor %}
-                </select>
-              </td>
+              <td>Start</td>
+              <td>Finish</td>
               <td class="center">Run</td>
               <td class="center">Raw</td>
               <td class="center">Cones</td>
               <td class="center">Gates</td>
               <td class="center">Total</td>
               <td class="center">State</td>
-              <td><button type="submit" class="run_save_print" name="action" value="update_print">Save & Print</button></td>
+              <td>[{{run.run_id}}]</td>
+              <!--<td><button type="submit" class="run_save_print" name="action" value="update_print">Save & Print</button></td>-->
               
             <!-- END SECOND ROW -->
             </tr><tr>
             <!-- START THIRD ROW -->
 
-              <td></td>
-              <td style="text-align: left;" colspan=8>Note:<input type="text" class="left" name="run_note" style="width:94%" value="{{run.run_note if run.run_note}}" /></td>
+              <td colspan="2">
+                <select name="entry_id" class="entry_select">
+                  <option disabled selected>-- Select Entry --</option>
+                  <option>None</option>
+                  {% for entry in g.entry_driver_list %}
+                  <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+                  <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
+                  {% endfor %}
+                </select>
+              </td>
+              <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" /></td>
               <td><button type="reset" class="run_reset" tabindex=1>Reset</button></td>
 
             <!-- END THIRD ROW -->
@@ -325,6 +330,7 @@ $(document).ready(function(){
         </form>
       </div>
       {% endfor %}
+      <div><i>Change filter to view runs not listed.</i></div>
     </div>
   <!-- end right panel -->
   </td></tr></table>

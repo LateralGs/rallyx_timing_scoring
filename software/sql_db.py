@@ -3,10 +3,11 @@ import threading
 import logging
 from util import format_time, time_cmp
 
+#######################################
+
 # this number should match the schema_versions/version_NNN.sql file name used to init the db
 SCHEMA_VERSION = 2
 
-#######################################
 #######################################
 
 def db_thread_lock(func):

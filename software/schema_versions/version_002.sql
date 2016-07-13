@@ -42,9 +42,11 @@ CREATE TABLE IF NOT EXISTS entries (
   event_time_ms   INT,  -- total score for this entry
   event_time      TEXT,
   event_points    INT, -- season points for this event
+  event_penalties TEXT, -- total penalties for event (not cones/gates)
   scored_runs     INT NOT NULL DEFAULT 0,
-  visible         INT NOT NULL DEFAULT 1, -- should the scores be publicly visible
-  checked_in      INT NOT NULL DEFAULT 0
+  scores_visible  INT NOT NULL DEFAULT 1, -- should the scores be publicly visible
+  checked_in      INT NOT NULL DEFAULT 0,
+  race_session    TEXT -- which session did they race in (eg. AM, PM, ...)
 );
 
 CREATE TABLE IF NOT EXISTS runs (
@@ -91,7 +93,7 @@ CREATE TABLE IF NOT EXISTS events (
   season_points INT DEFAULT 1,
   visible       INT DEFAULT 1, -- Is this event publicly visible
   event_note    TEXT,
-  max_runs      INT DEFAULT 3,
+  max_runs      INT DEFAULT 5,
   drop_runs     INT DEFAULT 0  -- just in case we need to calc it per event
 );
 

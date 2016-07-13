@@ -36,7 +36,6 @@
           <option disabled>None</option>
         {% endfor %}
       </select></p>
-      <p><label>RFID #:</label>*<input type="number" min="0" max="9999999999" size=40 name="rfid_number" required /></p>
       <p><label>Dual Driver:</label> <select name="dual_driver">
         <option value="0" >No</option>
         <option value="1" >Yes</option>
@@ -49,8 +48,8 @@
 
       <p><label>Car Class:</label>*<select name="car_class" required >
         <option selected disabled>-- Select Class --</option>
-        {% for car_class in config.CAR_CLASSES %}
-        <option value="{{car_class}}" >{{car_class}}: {{config.CAR_CLASS_NAMES[car_class]}}</option>
+        {% for car_class in g.rules.car_class_list %}
+        <option value="{{car_class}}" >{{car_class}}: {{g.rules.car_class_names[car_class]}}</option>
         {% else %}
         <option value="TO">TO: Time Only</option>
         {% endfor %}
@@ -60,9 +59,13 @@
         <option value="0" >No</option>
       </select></p>
       <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assign" /></p>
-      <p><label>Show Scores:</label> <select name="show_scores">
+      <p><label>Show Scores:</label> <select name="scores_visible">
         <option value="1" selected>Yes</option>
         <option value="0" >No</option>
+      </select></p>
+      <p><label>Checked In:</label> <select name="checked_in">
+        <option value="1" >Yes</option>
+        <option value="0" selected>No</option>
       </select></p>
       <p><label>Note:</label> <input type="text" size=40 name="entry_note" /></p>
       <br/>
@@ -71,36 +74,36 @@
   </div>
   <hr/>
   <h2>Entry List</h2>
-  <table class="simple tshrink">
+  <table class="simple">
     <tr>
-      <th colspan=3 class="nowrap">Entry</th>
-      <th class="nowrap">Car Class</th>
-      <th class="nowrap">Car Number</th>
+      <th colspan=2></th>
+      <th class="nowrap">Class</th>
+      <th class="nowrap">Car #</th>
       <th class="nowrap">Driver</th>
-      <th class="nowrap">RFID #</th>
-      <th class="nowrap">Dual Driver</th>
-      <th class="nowrap">Show Scores</th>
+      <th class="nowrap">Card #</th>
+      <th class="nowrap">Checked In</th>
+      <th class="nowrap">Work Assignment</th>
       <th class="nowrap">Note</th>
     </tr>
     <tr class="break"></tr>
     {% for entry in g.entry_driver_list %}
     <a name="{{entry.entry_id}}" />
     <tr id="{{entry.entry_id}}">
-      <td><button onclick='$("#edit_{{entry.entry_id}}").toggle()'>Edit</button></td>
+      <td><button onclick='$("#edit_{{entry.entry_id}}").toggle(); $("html, body").animate({scrollTop: $("#edit_{{entry.entry_id}}").offset().top});'>Edit</button></td>
       <td>
         <form action="{{url_for('entries_page')}}" method="POST">
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}">
-          <button type="submit" value="print" name="action">Print</button>
+          <button type="submit" value="check_in" name="action">Check-In</button>
         </form>
       </td>
-      <td><b>[{{entry.entry_id}}]</b></td>
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
       <td class="nowrap">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</td>
-      <td>{{entry.rfid_number}}</td>
-      <td>{{'Yes' if entry.dual_driver else 'No'}}</td>
-      <td>{{'Yes' if entry.show_scores else 'No'}}</td>
-      <td style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
+      <td>{{entry.card_number}}</td>
+      <td><b>{{'Yes' if entry.checked_in else 'No'}}</b></td>
+      <td>{{entry.work_assign}}</td>
+      <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
+    <tr>
     </tr>
     <tr id="edit_{{entry.entry_id}}" style="display: none">
       <td colspan=10 style="text-align: left; background: #ffd">
@@ -113,7 +116,6 @@
               <option disabled>None</option>
             {% endfor %}
           </select></p>
-          <p><label>RFID #:</label>*<input type="number" min="0" max="9999999999" size=40 name="rfid_number" value="{{entry.rfid_number if entry.rfid_number}}" required /></p>
           <p><label>Dual Driver:</label> <select name="dual_driver">
             <option value="0" {{'selected' if not entry.dual_driver}}>No</option>
             <option value="1" {{'selected' if entry.dual_driver}}>Yes</option>
@@ -125,8 +127,8 @@
           <p><label>Car Number:</label>*<input type="number" min="0" max="1000" size=40 name="car_number" value="{{entry.car_number if entry.car_number}}" required /></p>
 
           <p><label>Car Class:</label>*<select name="car_class" required >
-            {% for car_class in config.CAR_CLASSES %}
-            <option value="{{car_class}}" {{'selected' if entry.car_class == car_class}}>{{car_class}}: {{config.CAR_CLASS_NAMES[car_class]}}</option>
+            {% for car_class in g.rules.car_class_list %}
+            <option value="{{car_class}}" {{'selected' if entry.car_class == car_class}}>{{car_class}}: {{g.rules.car_class_names[car_class]}}</option>
             {% else %}
             <option value="TO">TO: Time Only</option>
             {% endfor %}
@@ -136,14 +138,20 @@
             <option value="1" {{'selected' if entry.season_points}}>Yes</option>
           </select></p>
           <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assign" value="{{entry.work_assign if entry.work_assign}}"/></p>
-          <p><label>Show Scores:</label> <select name="show_scores">
-            <option value="0" {{'selected' if not entry.show_scores}}>No</option>
-            <option value="1" {{'selected' if entry.show_scores}}>Yes</option>
+          <p><label>Show Scores:</label> <select name="scores_visible">
+            <option value="0" {{'selected' if not entry.scores_visible}}>No</option>
+            <option value="1" {{'selected' if entry.scores_visible}}>Yes</option>
+          </select></p>
+          <p><label>Checked In:</label> <select name="checked_in">
+            <option value="0" {{'selected' if not entry.checked_in}}>No</option>
+            <option value="1" {{'selected' if entry.checked_in}}>Yes</option>
           </select></p>
           <p><label>Note:</label> <input type="text" size=40 name="entry_note" value="{{entry.entry_note if entry.entry_note}}"/></p>
           <hr/>
-          <button type="submit" name="action" value="update">Save Changes</button>
-          <span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete" value="do_it"/> - <button type="submit" name="action" value="delete">Delete Entry</button></span>
+          <button type="submit" name="action" value="update">Save Changes</button> - 
+          [{{entry.entry_id}}]
+
+          <!--<span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete" value="do_it"/> - <button type="submit" name="action" value="delete">Delete Entry</button></span>-->
         </form>
       </td>
     </tr>

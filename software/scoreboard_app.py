@@ -55,7 +55,7 @@ def close_db(exception):
 @app.route('/')
 def index_page():
   db = get_db()
-  db.reg_inc('.pc_browser_index')
+  db.reg_inc('.pc_scoreboard_index')
 
   g.active_event_id = db.reg_get_int('active_event_id')
   
@@ -82,12 +82,13 @@ def index_page():
   for entry in g.entry_driver_list:
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.max_runs)
 
-  return render_template('scoring_browser_index.html')
+  return render_template('scoreboard_index.html')
+
 
 @app.route('/finish')
 def finish_page():
   db = get_db()
-  db.reg_inc('.pc_browser_finish')
+  db.reg_inc('.pc_scoreboard_finish')
 
   g.active_event_id = db.reg_get_int('active_event_id')
 
@@ -113,7 +114,21 @@ def finish_page():
     logging.debug(run_info)
     g.latest_runs.append(run_info)
 
-  return render_template('scoring_browser_finish.html')
+  return render_template('scoreboard_finish.html')
+
+
+@app.route('/sectors')
+def sectors_page():
+  db = get_db()
+  db.reg_inc('.pc_scoreboard_finish')
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+
+  if g.active_event_id is None:
+    return "No active event."
+
+  return render_template('scoreboard_sectors.html')
+
 
 #######################################
 

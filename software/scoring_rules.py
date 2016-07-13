@@ -1,16 +1,19 @@
-
-
+import logging
+from util import *
 
 # customizable rules for calculating event scoring
 
 ###########################################################
 
-class BasicRules(ScoringRules):
+class BasicRules(object):
   """ Basic RallyX rules with no drop runs """
-  def __init__(self, max_runs=5):
-    self.cone_penalty = 2
-    self.gate_penalty = 10
-    self.max_runs = max_runs
+  def __init__(self, **kwarg):
+    self.log = kwarg.get('logger', logging.getLogger(__name__))
+    self.cone_penalty = kwarg.get('cone_penalty', 2)
+    self.gate_penalty = kwarg.get('gate_penalty', 10)
+    self.min_runs = kwarg.get('min_runs', 3)
+    self.max_runs = kwarg.get('max_runs', 5)
+    self.drop_runs = kwarg.get('drop_runs', 0) # not used for BasicRules
     self.car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR']
     self.car_class_names = {
       'SA':'Stock All',
@@ -40,10 +43,18 @@ class BasicRules(ScoringRules):
     elif run['finish_time_ms'] == 0:
       raw_time = "DNF"
       total_time = "DNF"
-    elif run['start_time_ms'] is None:
+    elif run['start_time_ms'] is None and run['finish_time_ms'] is None:
       pass
     elif run['finish_time_ms'] is None:
       pass
+    elif run['start_time_ms'] is None:
+      total_time_ms = raw_time_ms = run['finish_time_ms']
+      if run['cones']:
+        total_time_ms += run['cones'] * self.cone_penalty * 1000 # penalty is in seconds, we need milliseconds
+      if run['gates']:
+        total_time_ms += run['gates'] * self.gate_penalty * 1000 # penalty is in seconds, we need milliseconds
+      raw_time = format_time(raw_time_ms)
+      total_time = format_time(total_time_ms)
     elif run['finish_time_ms'] <= run['start_time_ms']:
       raw_time = "INVALID"
       total_time = "INVALID"
@@ -85,11 +96,21 @@ class BasicRules(ScoringRules):
 
     db.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, scored_runs=scored_run_count)
 
+    # update run counts
+    entry_runs = db.run_list(entry_id=entry_id)
+    run_count = 0
+    for run in entry_runs:
+      if run['state'] in ('scored','finished','started'):
+        run_count+=1
+        db.run_update(run_id=run['run_id'], run_count=run_count)
+      else:
+        db.run_update(run_id=run['run_id'], run_count=None)
+
 
   def event_recalc(self, db, event_id):
     entries = db.entry_id_list(event_id)
     for entry in entries:
-      self.entry_recalc(entry['entry_id'])
+      self.entry_recalc(db, entry['entry_id'])
 
 
   def event_finalize(self, db, event_id):
@@ -97,9 +118,10 @@ class BasicRules(ScoringRules):
     entries = db.entry_id_list(event_id)
     for entry in entries:
       run_count = db.run_count(event_id, entry['entry_id'], state_filter=('scored','started','finished'))
-      for count in range(run_count+1, self.max_runs+1):
-        self.run_insert(event_id=event_id, start_time_ms=0, raw_time=DNS, total_time=DNS, run_count=count)
-      self.entry_recalc(entry['entry_id'])
+      self.log.debug(run_count)
+      for count in range(run_count+1, self.max_runs+2):
+        db.run_insert(event_id=event_id, entry_id=entry['entry_id'], start_time_ms=0, raw_time='DNS', total_time='DNS', run_count=count, state='scored')
+      self.entry_recalc(db, entry['entry_id'])
 
 
   def season_recalc(self, db):
@@ -111,11 +133,9 @@ class BasicRules(ScoringRules):
 
 class ORG_Rules(BasicRules):
   """ Oregon Rally Group rules based on 2016 SCCA RallyX rules and regional supplimental rules """
-  def __init__(self, max_runs=5, max_drop_runs=1):
-    super(ORG_Rules,self).__init__(max_runs)
-    self.max_drop_runs = 1
-    self.max_drop_events = 1
-    self.min_runs = 3 # only drop runs if we are above min_runs
+  def __init__(self, **kwarg):
+    super(ORG_Rules,self).__init__(**kwarg)
+    self.drop_events = kwarg.get('drop_events', 1)
     self.season_points_pos = [20, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2]
     self.season_points_finish = 2
     self.season_points_dnf = 1
@@ -162,11 +182,22 @@ class ORG_Rules(BasicRules):
 
     self.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, scored_runs=scored_run_count)
     
+    # update dropped runs
     for run in entry_runs:
       if run in dropped_runs:
         self.run_update(run_id=run['run_id'], drop_run=1)
       else:
         self.run_update(run_id=run['run_id'], drop_run=0)
+    
+    # update run counts
+    entry_runs = db.run_list(entry_id=entry_id)
+    run_count = 0
+    for run in entry_runs:
+      if run['state'] in ('scored','finished','started'):
+        run_count+=1
+        db.run_update(run_id=run['run_id'], run_count=run_count)
+      else:
+        db.run_update(run_id=run['run_id'], run_count=None)
 
 
 ###########################################################
