@@ -48,7 +48,7 @@
     </form>
   </div>
   <hr/>
-  <h2>Driver List</h2>
+  <h2>Driver List ({{g.driver_list|length}})</h2>
   <i>Press Edit for more info.</i>
   <table class="simple">
     <tr>
@@ -62,7 +62,7 @@
     {% for driver in g.driver_list %}
     <a name="{{driver.driver_id}}" />
     <tr id="{{driver.driver_id}}">
-      <td><button onclick='$("#edit_{{driver.driver_id}}").toggle(); $("html, body").animate({scrollTop: $("#edit_{{driver.driver_id}}").offset().top});'>Edit</button></td>
+      <td><button onclick='$("#edit_{{driver.driver_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{driver.driver_id}}").offset().top});'>Edit</button></td>
       <td class="nowrap">{{driver.first_name if driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}}</td>
       <td class="nowrap">{{driver.last_name if driver.last_name}}</td>
       <td class="nowrap">{{driver.card_number if driver.card_number}}</td>

@@ -90,6 +90,20 @@
     border: 2px solid red;
   }
 
+  label.start_flag {
+    color: #0a0;
+    font-weight: bold;
+  }
+
+  label.finish_flag {
+    color: #f00;
+    font-weight: bold;
+  }
+
+  select.red_text {
+    color: #f00;
+  }
+
 </style>
 <script>
 $(document).ready(function(){
@@ -101,11 +115,13 @@ $(document).ready(function(){
     $(this).css("visibility","hidden");
     //$(this).siblings(".run_save").css("visibility","hidden");
   });
-  $(".run_dns").click(function() {
-    $(this).siblings(".start_time").val("DNS");
-  });
-  $(".run_dnf").click(function() {
-    $(this).siblings(".finish_time").val("DNF");
+  $('.submit_save').keypress(function(e){
+    // workaround for DNS being the default submit button when enter is pressed
+    if ( e.which == 13 ){
+      $(this).parents("form").append("<input type='hidden' name='action' value='update'>")
+      $(this).parents("form").submit()
+      return false;
+    }
   });
 });
 </script>
@@ -135,9 +151,9 @@ $(document).ready(function(){
       <p>Check scoring hardware process.</p>
       {% else %}
       <p><label>Tag Heuer 520:</label><b>{{g.tag_heuer_status}}</b></p>
-      <p><label>Scanner:</label><b>{{g.scanner_status}}</b></p>
+      <p><label>Barcode Scanner:</label><b>{{g.barcode_scanner_status}}</b></p>
       <p><label>USB RFID Reader:</label><b>{{g.usb_rfid_status}}</b></p>
-      <p><label>Wireless RFID Reader:</label><b>{{g.wireless_rfid_status}}</b></p>
+      <p><label>RF RFID Reader:</label><b>{{g.wireless_rfid_status}}</b></p>
       {% endif %}
     </div>
 
@@ -155,9 +171,9 @@ $(document).ready(function(){
           </th>
         </tr>
         {% for time in g.time_list %}
-        {% if time.channel in ('1','M1') and not time.invalid %}
+        {% if time.channel in ('1','M1','01') and not time.invalid %}
         {% set color = 'green' %}
-        {% elif time.channel in ('2','M2') and not time.invalid %}
+        {% elif time.channel in ('2','M2','02') and not time.invalid %}
         {% set color = 'red' %}
         {% else %}
         {% set color = 'yellow' %}
@@ -205,7 +221,7 @@ $(document).ready(function(){
     </td><td>
       <div class="layout_box" style="padding-left: 16px; padding-right:16px">
       <h2>Started: {{g.cars_started}}</h2>
-      <h2>Finished: {{g.cars_started}}</h2>
+      <h2>Finished: {{g.cars_finished}}</h2>
       <form action="{{url_for('timing_page')}}"  method="POST">
         <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
         <input type="hidden" name="state" value="finished" />
@@ -232,7 +248,7 @@ $(document).ready(function(){
     <div class="layout_box">
       <form action="{{url_for('timing_page')}}"  method="POST">
       Filter:
-      <select name="entry_filter">
+      <select name="entry_filter" class="{{'red_text' if session.entry_filter not in ('all',None)}}">
         <option value="all" {{'selected' if session.entry_filter=='all'}}>All</option>
         <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
         <optgroup label="Entries">
@@ -265,24 +281,27 @@ $(document).ready(function(){
         <form action="{{url_for('timing_page')}}"  method="POST">
           <input type="hidden" name="run_id" value="{{run.run_id}}" />
           <input type="hidden" name="old_state" value="{{run.state}}" />
+          <input type="hidden" name="old_entry_id" value="{{run.entry_id}}" />
           <table class="layout">
             <tr>
             <!-- START FIRST ROW -->
               <td class="nowrap">
-                <input type="text" class="start_time" name="start_time" pattern="\s*((\s)|(DNS)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.start_time_ms|format_time('DNS')}}" size="12" title="[[HH:]MM:]SS.sss or DNS" />
-                <input type="button" value="DNS" class="run_dns"/>&nbsp;
+                <label class="start_flag" title="Start">&#9873;</label>&nbsp;<input title="Start" type="text" class="start_time submit_save" name="start_time" pattern="\s*((\s)|(DNS)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.start_time_ms|format_time('DNS')}}" size="12" title="[[HH:]MM:]SS.sss or DNS" {{'disabled' if run.state != 'started' and run.finish_time_ms == 0}} />
+                <!--<input type="button" value="DNS" class="run_dns"/>&nbsp;-->
+                <button type="submit" name="action" value="dns">DNS</button>&nbsp;
               </td>
               <td class="nowrap">
-                <input type="text" class="finish_time" name="finish_time" pattern="\s*((\s)|(DNF)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.finish_time_ms|format_time('DNF') if run.state != 'started'}}" size="12" title="[[HH:]MM:]SS.sss or DNF" {{'disabled' if run.state == 'started'}} />
-                <input type="button" value="DNF" class="run_dnf" {{'disabled' if run.state == 'started'}} />&nbsp;
+                <label class="finish_flag" title="Finish">&#9873;</label>&nbsp;<input title="Finish" type="text" class="finish_time submit_save" name="finish_time" pattern="\s*((\s)|(DNF)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.finish_time_ms|format_time('DNF') if run.state != 'started'}}" size="12" title="[[HH:]MM:]SS.sss or DNF" {{'disabled' if run.state == 'started' or run.start_time_ms == 0}} />
+                <!--<input type="button" value="DNF" class="run_dnf" {{'disabled' if run.state == 'started'}} />&nbsp;-->
+                <button type="submit" name="action" value="dnf">DNF</button>&nbsp;
               </td>
               <td><input type="text" size="4" value="{{run.run_count if run.run_count}}" disabled /></td>
               <td><input type="text" size="14" value="{{run.raw_time if run.raw_time}}" disabled /></td>
-              <td><input type="number" min="0" max="100" name="cones" value="{{run.cones if run.cones}}" /></td>
-              <td><input type="number" min="0" max="100" name="gates" value="{{run.gates if run.gates}}" /></td>
+              <td><input type="number" class="submit_save" min="0" max="100" name="cones" value="{{run.cones if run.cones}}" /></td>
+              <td><input type="number" class="submit_save" min="0" max="100" name="gates" value="{{run.gates if run.gates}}" /></td>
               <td><input type="text" size="14" value="{{run.total_time if run.total_time}}" disabled /></td>
               <td>
-                <select class="run_state" name="state">
+                <select class="run_state submit_save" name="state">
                   <option value="started" {{'selected' if run.state == 'started'}}>Started</option>
                   <option value="finished" {{'selected' if run.state == 'finished'}}>Finished</option>
                   <option value="scored" {{'selected' if run.state == 'scored'}}>Scored</option>
@@ -296,8 +315,12 @@ $(document).ready(function(){
             <!-- END FIRST ROW -->
             </tr><tr>
             <!-- START SECOND ROW -->
-              <td>Start</td>
-              <td>Finish</td>
+              <td class="nowrap" style="text-align: left">
+                <label title="Split 1">S1:</label><input title="Split 1" type="text" class="split_time submit_save" name="split_1" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.split_1_time_ms|format_time('')}}" size="12" title="[[HH:]MM:]SS.sss" {{'disabled' if run.state == 'started' or run.start_time_ms == 0 or run.finish_time_ms == 0}} />
+              </td>
+              <td class="nowrap" style="text-align: left">
+                <label title="Split 2">S2:</label><input title="Split 2" type="text" class="split_time submit_save" name="split_2" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.split_2_time_ms|format_time('')}}" size="12" title="[[HH:]MM:]SS.sss" {{'disabled' if run.state == 'started' or run.start_time_ms == 0 or run.finish_time_ms == 0}} />
+              </td>
               <td class="center">Run</td>
               <td class="center">Raw</td>
               <td class="center">Cones</td>
@@ -321,7 +344,7 @@ $(document).ready(function(){
                   {% endfor %}
                 </select>
               </td>
-              <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" /></td>
+              <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left submit_save" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" /></td>
               <td><button type="reset" class="run_reset" tabindex=1>Reset</button></td>
 
             <!-- END THIRD ROW -->

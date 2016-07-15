@@ -25,21 +25,20 @@ event_queue = Queue()
 
 #######################################
 
-def scanner_thread():
-  log = logging.getLogger('scanner')
+def barcode_scanner_thread():
+  log = logging.getLogger('barcode_scanner')
   scanner = BarcodeScanner()
   while True:
     if scanner.is_open():
-      scanner_open = True
-      scanner_data = scanner.read()
-      if scanner_data is None:
+      barcode_data = scanner.read()
+      if barcode_data is None:
         sleep(0.1)
       else:
-        event_queue.put(('scanner_data', scanner_data))
-    elif scanner.open(config.SERIAL_PORT_LICENSE_SCANNER):
-      event_queue.put(('scanner_status', 'Open'))
+        event_queue.put(('barcode_data', barcode_data))
+    elif scanner.open(config.SERIAL_PORT_BARCODE_SCANNER):
+      event_queue.put(('barcode_scanner_status', 'Open'))
     else:
-      event_queue.put(('scanner_status', 'Closed'))
+      event_queue.put(('barcode_scanner_status', 'Closed'))
       sleep(1)
 
 #######################################
@@ -87,7 +86,7 @@ def usb_rfid_thread():
         prev_data = new_data
         event_queue.put(('usb_rfid_data', new_data))
         rfid_reader.beep()
-    elif rfid_reader.open(config.SERIAL_PORT_RFID_READER):
+    elif rfid_reader.open(config.SERIAL_PORT_USB_RFID_READER):
       event_queue.put(('usb_rfid_status','Open'))
       rfid_reader.led_on()
       open_state = True
@@ -120,7 +119,7 @@ def wireless_rfid_thread():
         prev_data = new_data
         event_queue.put(('wireless_rfid_data', new_data))
         rfid_reader.beep()
-    elif rfid_reader.open(config.SERIAL_PORT_RFID_READER):
+    elif rfid_reader.open(config.SERIAL_PORT_WIRELESS_RFID_READER):
       event_queue.put(('wireless_rfid_status','Open'))
       rfid_reader.led_on()
       open_state = True
@@ -138,21 +137,21 @@ def watchdog_thread():
   log = logging.getLogger('watchdog')
 
   while True:
-    scanner_watchdog = False
+    barcode_scanner_watchdog = False
     tag_heuer_watchdog = False
     usb_rfid_watchdog = False
     wireless_rfid_watchdog = False
     active_threads = threading.enumerate()
     for t in active_threads:
-      if t.name == 'scanner':
-        scanner_watchdog = True
+      if t.name == 'barcode_scanner':
+        barcode_scanner_watchdog = True
       elif t.name == 'tag_heuer':
         tag_heuer_watchdog = True
       elif t.name == 'usb_rfid':
         usb_rfid_watchdog = True
       elif t.name == 'wireless_rfid':
         wireless_rfid_watchdog = True
-    if scanner_watchdog and tag_heuer_watchdog and usb_rfid_watchdog and wireless_rfid_watchdog:
+    if barcode_scanner_watchdog and tag_heuer_watchdog and usb_rfid_watchdog and wireless_rfid_watchdog:
       event_queue.put(('watchdog', time()))
       timeout_msg = True
     elif timeout_msg:
@@ -173,25 +172,26 @@ if __name__ == '__main__':
     logging.getLogger("singleton").debug(me)
 
   # start threads for talking to hardware
-  scanner_thread_obj = threading.Thread(target=scanner_thread, name="scanner")
+  barcode_scanner_thread_obj = threading.Thread(target=barcode_scanner_thread, name="barcode_scanner")
   tag_heuer_thread_obj = threading.Thread(target=tag_heuer_thread, name="tag_heuer")
   usb_rfid_thread_obj = threading.Thread(target=usb_rfid_thread, name="usb_rfid")
   wireless_rfid_thread_obj = threading.Thread(target=wireless_rfid_thread, name="wireless_rfid")
   watchdog_thread_obj = threading.Thread(target=watchdog_thread, name="watchdog")
 
-  scanner_thread_obj.daemon = True
+  barcode_scanner_thread_obj.daemon = True
   tag_heuer_thread_obj.daemon = True
   usb_rfid_thread_obj.daemon = True
   wireless_rfid_thread_obj.daemon = True
   watchdog_thread_obj.daemon = True
 
-  scanner_thread_obj.start()
+  barcode_scanner_thread_obj.start()
   tag_heuer_thread_obj.start()
   usb_rfid_thread_obj.start()
   wireless_rfid_thread_obj.start()
   watchdog_thread_obj.start()
 
   log = logging.getLogger('main')
+  rules = config.SCORING_RULES_CLASS()
 
   with ScoringDatabase(config.SCORING_DB_PATH) as db:
     while True:
@@ -202,23 +202,21 @@ if __name__ == '__main__':
         # ...
         continue
       log.info("%r, %r", evt_type, evt_data)
-      if evt_type == 'scanner_data':
+      if evt_type == 'barcode_data':
         if evt_data.startswith("@"):
           license_data = decode_pdf417(evt_data)
-          db.reg_set('scanner_license_data', license_data)
+          db.reg_set('license_data', license_data)
         else:
-          db.reg_set('scanner_data', evt_data)
+          db.reg_set('barcode_data', evt_data)
       elif evt_type == 'time_data':
         active_event_id = db.reg_get_int('active_event_id')
+        rules.sync(db)
 
         if active_event_id is None:
           log.warning("active_event_id is None")
-          if evt_data[0] in ('1','M1'):
-            play_sound("sounds/FalseStart.wav") # FIXME move sound paths to config.py
-          else:
-            play_sound("sounds/FalseFinish.wav") # FIXME move sound paths to config.py
+          play_sound(config.SOUND_FALSE_START)
 
-        elif evt_data[0] in ('1','M1'):
+        elif evt_data[0] in ('1','M1','01'):
           next_entry_id = db.reg_get_int('next_entry_id')
           db.reg_set('next_entry_id', None)
           disable_start = db.reg_get_int('disable_start', 0)
@@ -229,16 +227,16 @@ if __name__ == '__main__':
             if run_id is None:
               db.time_update(time_id, invalid=True)
               log.info("Start [FALSE]: %r", evt_data)
-              play_sound("sounds/FalseStart.wav") # FIXME move sound paths to config.py
+              play_sound(config.SOUND_FALSE_START)
             else:
-              db.run_recalc(run_id, config.CONE_PENALTY, config.GATE_PENALTY) # FIXME
+              rules.run_recalc(db, run_id)
               log.info("Start: %r", evt_data)
-              play_sound("sounds/CarStarted.wav") # FIXME move sound paths to config.py
+              play_sound(config.SOUND_START)
           else:
             log.info("Start [DISABLED]: %r", evt_data)
-            play_sound("sounds/FalseStart.wav") # FIXME move sound paths to config.py
+            play_sound(config.SOUND_FALSE_START)
 
-        elif evt_data[0] in ('2','M2'):
+        elif evt_data[0] in ('2','M2','02'):
           disable_finish = db.reg_get_int('disable_finish', 0)
           time_id = db.time_insert(active_event_id, evt_data[0], evt_data[1], disable_finish)
 
@@ -247,18 +245,18 @@ if __name__ == '__main__':
             if run_id is None:
               db.time_update(time_id, invalid=True)
               log.info("Finish [FALSE]: %r", evt_data)
-              play_sound("sounds/FalseFinish.wav") # FIXME move sound paths to config.py
+              play_sound(config.SOUND_FALSE_FINISH)
             else:
-              db.run_recalc(run_id, config.CONE_PENALTY, config.GATE_PENALTY) # FIXME
+              rules.run_recalc(db, run_id)
               log.info("Finish: %r", evt_data)
-              play_sound("sounds/CarFinished.wav") # FIXME move sound paths to config.py
+              play_sound(config.SOUND_FINISH)
           else:
             log.info("Finish [DISABLED]: %r", evt_data)
-            play_sound("sounds/FalseFinish.wav") # FIXME move sound paths to config.py
-        elif evt_data[0] in ('3', 'M3'):
+            play_sound(config.SOUND_FALSE_FINISH)
+        elif evt_data[0] in ('3', 'M3', '03'):
           time_id = db.time_insert(active_event_id, evt_data[0], evt_data[1])
           # FIXME add split 1 handling
-        elif evt_data[0] in ('4', 'M4'):
+        elif evt_data[0] in ('4', 'M4', '04'):
           time_id = db.time_insert(active_event_id, evt_data[0], evt_data[1])
           # FIXME add split 2 handling
         else:
@@ -271,22 +269,22 @@ if __name__ == '__main__':
           log.warning("Invalid rfid number")
           play_sound("sounds/OutputFailure.wav")
         else:
-          entry = db.entry_by_rfid(db.reg_get('active_event_id'), rfid_number)
+          entry = db.entry_by_card(db.reg_get('active_event_id'), rfid_number)
           if entry is None:
             log.warning("No entry_id found")
-            play_sound("sounds/OutputFailure.wav") # FIXME move sound paths to config.py
+            play_sound(config.SOUND_RFID_SCAN_BAD)
           else:
             db.reg_set("next_entry_id", entry['entry_id'])
             log.info("Set next_entry_id, %r", entry['entry_id'])
-            play_sound("sounds/OutputComplete.wav") # FIXME move sound paths to config.py
+            play_sound(config.SOUND_RFID_SCAN_GOOD)
       elif evt_type == 'usb_rfid_status':
         db.reg_set('usb_rfid_status',evt_data)
       elif evt_type == 'wireless_rfid_status':
         db.reg_set('wireless_rfid_status',evt_data)
       elif evt_type == 'tag_heuer_status':
         db.reg_set('tag_heuer_status', evt_data)
-      elif evt_type == 'scanner_status':
-        db.reg_set('scanner_status', evt_data)
+      elif evt_type == 'barcode_scanner_status':
+        db.reg_set('barcode_scanner_status', evt_data)
       elif evt_type == 'watchdog':
         db.reg_set('hardware_watchdog', evt_data)
       else:

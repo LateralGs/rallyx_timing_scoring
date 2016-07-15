@@ -274,8 +274,8 @@ class ScoringDatabase(object):
     self.con.commit()
     return rowid
 
-  def penalty_insert(self, entry_id, time_ms, note=None):
-    rowid = self.con.execute("INSERT INTO penalties (entry_id, time_ms, penalty_note) VALUES (?,?,?)", (entry_id, time_ms, note)).lastrowid
+  def penalty_insert(self, entry_id, time_ms, penalty_note=None):
+    rowid = self.con.execute("INSERT INTO penalties (entry_id, time_ms, penalty_note) VALUES (?,?,?)", (entry_id, time_ms, penalty_note)).lastrowid
     self.con.commit()
     return rowid
 
@@ -308,7 +308,7 @@ class ScoringDatabase(object):
     self.con.execute("DELETE FROM times WHERE time_id=?", (time_id,))
     self.con.commit()
   
-  def time_delete(self, penalty_id):
+  def penalty_delete(self, penalty_id):
     self.con.execute("DELETE FROM penalties WHERE penalty_id=?", (penalty_id,))
     self.con.commit()
 

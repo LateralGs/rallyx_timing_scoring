@@ -47,6 +47,8 @@ def json_query(url):
 #######################################
 
 def parse_time_ex(time_str):
+  if time_str is None:
+    return None
   if not isinstance(time_str, types.StringTypes):
     raise TypeError()
   time_str = time_str.strip()
@@ -54,29 +56,32 @@ def parse_time_ex(time_str):
     return None
   if time_str.lower() in ('dnf', 'dns'):
     return 0
-  match = re.match(r"^(\d+):(\d{1,2}):(\d{1,2}).(\d{0,3})$", time_str)
+  match = re.match(r"^(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d{0,3}))?$", time_str)
   if match:
     h, m, s, ms = match.groups()
     time_ms = 0
     time_ms += int(h) * (60 * 60 * 1000)
     time_ms += int(m) * (60 * 1000)
     time_ms += int(s) * (1000)
-    time_ms += int(ms + ('0' * (3-len(ms))))
+    if ms:
+      time_ms += int(ms + ('0' * (3-len(ms))))
     return time_ms
-  match = re.match(r"^(\d+):(\d{1,2}).(\d{0,3})$", time_str)
+  match = re.match(r"^(\d+):(\d{1,2})(?:\.(\d{0,3}))?$", time_str)
   if match:
     m, s, ms = match.groups()
     time_ms = 0
     time_ms += int(m) * (60 * 1000)
     time_ms += int(s) * (1000)
-    time_ms += int(ms + ('0' * (3-len(ms))))
+    if ms:
+      time_ms += int(ms + ('0' * (3-len(ms))))
     return time_ms
-  match = re.match(r"^(\d+).(\d{0,3})$", time_str)
+  match = re.match(r"^(\d+)(?:\.(\d{0,3}))?$", time_str)
   if match:
     s, ms = match.groups()
     time_ms = 0
     time_ms += int(s) * (1000)
-    time_ms += int(ms + ('0' * (3-len(ms))))
+    if ms:
+      time_ms += int(ms + ('0' * (3-len(ms))))
     return time_ms
   raise ValueError()
 
@@ -151,19 +156,20 @@ def time_cmp(a,b):
 #######################################
 
 def entry_cmp(a,b):
+  util_log.debug("entry_cmp: %r, %r", a, b)
   if a['scored_runs'] < b['scored_runs']:
     return 1
   elif a['scored_runs'] > b['scored_runs']:
     return -1
-  elif a in (0,None) and b in (0,None):
+  elif a['event_time_ms'] in (0,None) and b['event_time_ms'] in (0,None):
     return 0
-  elif a in (0,None):
+  elif a['event_time_ms'] in (0,None):
     return 1
-  elif b in (0,None):
+  elif b['event_time_ms'] in (0,None):
     return -1
-  elif a < b:
+  elif a['event_time_ms'] < b['event_time_ms']:
     return -1
-  elif a > b:
+  elif a['event_time_ms'] > b['event_time_ms']:
     return 1
   else:
     return 0

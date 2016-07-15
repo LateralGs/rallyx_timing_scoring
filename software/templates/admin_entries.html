@@ -13,6 +13,14 @@
   p {
     margin: 2px;
   }
+
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
   
   tr:target {
     background: #ffb;
@@ -73,7 +81,7 @@
     </form>
   </div>
   <hr/>
-  <h2>Entry List</h2>
+  <h2>Entry List ({{g.entry_driver_list|length}})</h2>
   <table class="simple">
     <tr>
       <th colspan=2></th>
@@ -89,7 +97,7 @@
     {% for entry in g.entry_driver_list %}
     <a name="{{entry.entry_id}}" />
     <tr id="{{entry.entry_id}}">
-      <td><button onclick='$("#edit_{{entry.entry_id}}").toggle(); $("html, body").animate({scrollTop: $("#edit_{{entry.entry_id}}").offset().top});'>Edit</button></td>
+      <td><button onclick='$("#edit_{{entry.entry_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{entry.entry_id}}").offset().top});'>Edit</button></td>
       <td>
         <form action="{{url_for('entries_page')}}" method="POST">
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}">
@@ -100,7 +108,7 @@
       <td>{{entry.car_number}}</td>
       <td class="nowrap">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</td>
       <td>{{entry.card_number}}</td>
-      <td><b>{{'Yes' if entry.checked_in else 'No'}}</b></td>
+      <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
       <td>{{entry.work_assign}}</td>
       <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
     <tr>

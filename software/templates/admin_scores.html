@@ -13,7 +13,7 @@
 
   th {
     border: 1px solid black;
-    background: #ccc;
+    background: #ddd;
     text-align: center;
     padding-left: 4px;
     padding-right: 4px;
@@ -75,10 +75,15 @@
 
   <div>
     <h2>Event Scores</h2>
+    <form action="{{url_for('scores_page')}}"  method='POST'>
+    <button type="submit" name="action" value="recalc">Recalculate Scores</button> - 
+    <button type="submit" name="action" value="finalize">Finalize Runs</button>
+    </form>
+    <br>
     <span>()=Drop Run</span>
     <table class="scores">
       <tr>
-        <th colspan=3>Driver</th>
+        <th colspan=3>Entry</th>
         {% for num in range(g.active_event.max_runs) %}
         <th colspan=4>Run {{num+1}}</th>
         {% endfor %}
@@ -136,9 +141,6 @@
       {% endfor %}
     </table>
   </div>
-</body>
-</html>
-
 </body>
 </html>
 

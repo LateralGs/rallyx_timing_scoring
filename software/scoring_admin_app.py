@@ -13,7 +13,9 @@ from sql_db import ScoringDatabase
 from time import time
 import datetime
 
+
 #######################################
+
 
 # main wsgi app
 app = Flask(__name__)
@@ -37,6 +39,7 @@ app.jinja_env.filters['pad']=pad
 
 #######################################
 
+
 # per appcontext database session
 def get_db():
   db = getattr(g, '_database', None)
@@ -44,21 +47,19 @@ def get_db():
     db = g._database = ScoringDatabase(app.config['SCORING_DB_PATH'])
   return db
 
+
 @app.teardown_appcontext
 def close_db(exception):
   db = getattr(g, '_database', None)
   if db is not None:
     db.close()
 
+
 def get_rules(db):
   rules = getattr(g, '_rules', None)
   if rules is None:
     rules = g._rules = app.config['SCORING_RULES_CLASS']()
-    if db:
-      event = db.event_get(db.reg_get_int('active_event_id'))
-      if event:
-        rules.max_runs = event['max_runs']
-        rules.drop_runs = event['drop_runs']
+  rules.sync(db)
   return rules
 
 
@@ -66,7 +67,9 @@ def get_rules(db):
 def request_started_signal(sender, **extra):
   pass
 
+
 #######################################
+
 
 @app.route('/')
 def index_page():
@@ -75,7 +78,9 @@ def index_page():
   # nothing to do, static page for instructions
   return render_template('admin_index.html')
 
+
 #######################################
+
 
 @app.route('/events', methods=['GET','POST'])
 def events_page():
@@ -164,7 +169,9 @@ def events_page():
   
   return render_template('admin_events.html')
 
+
 #######################################
+
 
 @app.route('/timing', methods=['GET','POST'])
 def timing_page():
@@ -217,7 +224,8 @@ def timing_page():
     return redirect(url_for('timing_page'))
 
   elif action == 'set_next':
-    db.reg_set('next_entry_id',request.form.get('next'))
+    if request.form.get('next'):
+      db.reg_set('next_entry_id',request.form.get('next'))
     return redirect(url_for('timing_page'))
 
   elif action == 'clear_next':
@@ -250,7 +258,7 @@ def timing_page():
     session['run_limit'] = 20
     return redirect(url_for('timing_page'))
 
-  elif action == 'set_max_runs': # TODO add ability to set drop runs
+  elif action == 'set_max_runs':
     try:
       max_runs = int(request.form.get('max_runs',''))
     except ValueError:
@@ -261,7 +269,7 @@ def timing_page():
       flash("Event scores recalculated")
     return redirect(url_for('timing_page'))
 
-  elif action == 'update' or action == 'update_print':
+  elif action == 'update':
     run_id = request.form.get('run_id')
     if not db.run_exists(run_id):
       flash("Invalid run id", 'error')
@@ -274,59 +282,41 @@ def timing_page():
         try:
           run_data['start_time_ms'] = parse_time_ex(request.form.get(key))
         except:
+          app.logger.debug(request.form.get(key))
           flash("Invalid start time, start time not changed.", 'error')
-      elif key == 'finish_time' and request.form.get('old_state') != 'started':
-        # prevent user from clobbering finish time
-        # if changing to started clear finish time
-        if request.form.get('state') == 'started':
-          run_data['finish_time_ms'] = None
-        else:
+      elif key == 'finish_time':
+        if request.form.get('old_state') != 'started':
           try:
             run_data['finish_time_ms'] = parse_time_ex(request.form.get(key))
           except:
+            app.logger.debug(request.form.get(key))
             flash("Invalid finish time, finish time not changed.", 'error')
       elif key == 'state' and request.form.get('state') == request.form.get('old_state'):
         pass # ignore setting state so we dont clobber a finish
+      elif key == 'entry_id' and request.form.get(key) == 'None':
+        run_data[key] = None
       elif key in request.form:
         run_data[key] = clean_str(request.form.get(key))
 
-    if run_data.get('start_time_ms') == 0 and request.form.get('state') == 'started':
-      run_data['state'] = 'finished'
+    if request.form.get('state') == 'started' and run_data.get('start_time_ms') == 0:
+      run_data['start_time_ms'] = None
+    if request.form.get('state') == 'started' and run_data.get('finsih_time_ms') == 0:
+      run_data['finish_time_ms'] = None
 
     logging.debug(run_data)
     db.run_update(run_id, **run_data)
     flash("Run changes saved")
+
+    old_entry_id = request.form.get('old_entry_id')
+    if old_entry_id != request.form.get('entry_id') and old_entry_id != 'None':
+      g.rules.entry_recalc(db, old_entry_id)
+      flash("Old entry recalc")
+
     g.rules.run_recalc(db, run_id)
     flash("Run recalc")
     if 'entry_id' in run_data and run_data['entry_id'] is not None:
       g.rules.entry_recalc(db, run_data['entry_id'])
       flash("Entry recalc")
-
-    if action == 'update_print':
-      run = db.run_get(run_id)
-      entry = db.entry_driver_get(run['entry_id'])
-      if run['state'] != 'scored':
-        flash("No label printed, run is not in the scored state!", 'warning')
-      elif entry is None:
-        flash("No label printed, run not assigned a valid entry!", 'warning')
-      else:
-        if entry['alt_name']:
-          entry_name = entry['first_name'] + ' (' + entry['alt_name'] + ') ' + entry['last_name']
-        else:
-          entry_name = entry['first_name'] + ' ' + entry['last_name']
-          
-        label_text = " %2s %-3s %-24s %4s" % (entry['car_class'], entry['car_number'], entry_name, run['run_count'])
-        label_text += "\r\n"
-        cones = '0' if run['cones'] is None else run['cones']
-        gates = '0' if run['gates'] is None else run['gates']
-        label_text += " %12s %4s %4s %12s" % ( run['raw_time'], cones, gates, run['total_time'] )
-        label_text += "\r\n"
-        label_text += " %12s %4s %4s %12s" % ("Raw", "C", "G", "Score")
-        label_text += "\r\n\r\n"
-        label_text += "                 Total: %12s" % entry['event_time']
-
-        print_label(app.config['PRINTER_NAME'], label_text)
-        flash("Label Printed")
 
     return redirect(url_for('timing_page'))
 
@@ -342,8 +332,35 @@ def timing_page():
     flash("Added new run [%r]" % run_id)
     return redirect(url_for('timing_page'))
 
-  elif action == 'print':
-    flash("Print label: FIXME")
+  elif action == 'dnf':
+    run_id = request.form.get('run_id')
+    entry_id = request.form.get('entry_id')
+    if not db.run_exists(run_id):
+      flash("Invalid run id", 'error')
+      return redirect(url_for('timing_page'))
+    db.run_update(run_id, start_time_ms=None, finish_time_ms=0, state="scored")
+    flash("Run changes saved")
+    g.rules.run_recalc(db, run_id)
+    flash("Run recalc")
+    if entry_id is not None:
+      g.rules.entry_recalc(db, entry_id)
+      flash("Entry recalc")
+    return redirect(url_for('timing_page'))
+
+
+  elif action == 'dns':
+    run_id = request.form.get('run_id')
+    entry_id = request.form.get('entry_id')
+    if not db.run_exists(run_id):
+      flash("Invalid run id", 'error')
+      return redirect(url_for('timing_page'))
+    db.run_update(run_id, start_time_ms=0, finish_time_ms=None, state="scored")
+    flash("Run changes saved")
+    g.rules.run_recalc(db, run_id)
+    flash("Run recalc")
+    if entry_id is not None:
+      g.rules.entry_recalc(db, entry_id)
+      flash("Entry recalc")
     return redirect(url_for('timing_page'))
 
   elif action is not None:
@@ -388,17 +405,19 @@ def timing_page():
   g.next_entry_id = db.reg_get_int('next_entry_id')
   g.next_entry_driver = db.entry_driver_get(g.next_entry_id)
   g.next_entry_run_count = db.run_count(g.active_event_id, g.next_entry_id, state_filter=('started','finished','scored'))
-  g.scanner_status = db.reg_get('scanner_status')
+  g.barcode_scanner_status = db.reg_get('barcode_scanner_status')
   g.tag_heuer_status = db.reg_get('tag_heuer_status')
   g.usb_rfid_status = db.reg_get('usb_rfid_status')
   g.wireless_rfid_status = db.reg_get('wireless_rfid_status')
   g.hardware_ok = bool(time() - db.reg_get_float('hardware_watchdog', 0) < 3)
-  g.start_ready = g.hardware_ok and (g.tag_heuer_status == 'Open' or g.rallyx_timer_status == 'Open') and not g.disable_start
-  g.finish_ready = g.hardware_ok and (g.tag_heuer_status == 'Open' or g.rallyx_timer_status == 'Open') and not g.disable_finish
+  g.start_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_start
+  g.finish_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_finish
 
   return render_template('admin_timing.html')
 
+
 #######################################
+
 
 @app.route('/entries', methods=['GET','POST'])
 def entries_page():
@@ -504,7 +523,9 @@ def entries_page():
   g.driver_list = db.driver_list()
   return render_template('admin_entries.html')
 
+
 #######################################
+
 
 @app.route('/drivers', methods=['GET','POST'])
 def drivers_page():
@@ -566,9 +587,139 @@ def drivers_page():
   g.driver_list = db.driver_list()
   return render_template('admin_drivers.html')
 
+
 #######################################
 
-@app.route('/scores')
+
+@app.route('/penalties', methods=['GET','POST'])
+def penalties_page():
+  db = get_db()
+  g.rules = get_rules(db)
+  db.reg_inc('.pc_admin_penalties')
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+  if not db.event_exists(g.active_event_id):
+    flash("No active event!")
+    return redirect(url_for('events_page'))
+  g.active_event = db.event_get(g.active_event_id)
+
+  action = request.form.get('action')
+
+  if action == 'insert':
+    entry_id = request.form.get('entry_id')
+    penalty_time = request.form.get('penalty_time')
+    penalty_note = request.form.get('penalty_note')
+
+    if not db.entry_exists(entry_id):
+      flash("Invalid entry id", 'error')
+      return redirect(url_for('penalties_page'))
+
+    try:
+      time_ms = parse_time_ex(penalty_time)
+    except:
+      flash("Invalid penalty time", 'error')
+      return redirect(url_for('penalties_page'))
+    
+    if time_ms is None:
+      time_ms = 0
+
+    db.penalty_insert(entry_id=entry_id, time_ms=time_ms, penalty_note=penalty_note)
+    flash("Penalty added")
+
+    g.rules.entry_recalc(db, entry_id)
+    flash("entry recalc")
+
+    return redirect(url_for('penalties_page'))
+
+  elif action == 'update':
+    penalty_id = request.form.get('penalty_id')
+    entry_id = request.form.get('entry_id')
+    penalty_time = request.form.get('penalty_time')
+    penalty_note = request.form.get('penalty_note')
+    penalty = db.penalty_get(penalty_id)
+
+    if penalty is None:
+      flash("Invalid penalty id", 'error')
+      return redirect(url_for('penalties_page'))
+
+    if not db.entry_exists(entry_id):
+      flash("Invalid entry id", 'error')
+      return redirect(url_for('penalties_page'))
+
+    try:
+      time_ms = parse_time_ex(penalty_time)
+    except:
+      flash("Invalid penalty time", 'error')
+      return redirect(url_for('penalties_page'))
+
+    if time_ms is None:
+      time_ms = 0
+
+    db.penalty_update(penalty_id=penalty_id, entry_id=entry_id, time_ms=time_ms, penalty_note=penalty_note)
+    flash("Penalty updated")
+
+    if penalty['entry_id'] != entry_id:
+      # update previous entry
+      flash("old entry recalc")
+      g.rules.entry_recalc(db, penalty['entry_id'])
+
+    # update current entry
+    g.rules.entry_recalc(db, entry_id)
+    flash("entry recalc")
+
+    return redirect(url_for('penalties_page'))
+
+  elif action == 'delete':
+    penalty_id = request.form.get('penalty_id')
+    penalty = db.penalty_get(penalty_id)
+
+    if penalty is None:
+      flash("Invalid penalty id", 'error')
+      return redirect(url_for('penalties_page'))
+
+    db.penalty_delete(penalty_id)
+    flash("Penalty deleted")
+
+    # update previous entry
+    flash("old entry recalc")
+    g.rules.entry_recalc(db, penalty['entry_id'])
+
+    return redirect(url_for('penalties_page'))
+
+  elif action is not None:
+    flash("Unkown form action %r" % action)
+    return redirect(url_for('penalties_page'))
+
+  g.penalty_list = db.penalty_list(g.active_event_id)
+
+  g.penalty_list = db.query_all("SELECT penalty_id, penalties.entry_id, car_class, car_number, first_name, last_name, alt_name, time_ms, penalty_note  FROM penalties, entries, drivers WHERE penalties.entry_id=entries.entry_id AND entries.driver_id=drivers.driver_id AND entries.event_id=? ORDER BY penalties.penalty_id ASC", g.active_event_id)
+  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
+
+  return render_template('admin_penalties.html')
+
+
+#######################################
+
+
+@app.route('/sessions')
+def sessions_page():
+  db = get_db()
+  g.rules = get_rules(db)
+  db.reg_inc('.pc_admin_penalties')
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+  if not db.event_exists(g.active_event_id):
+    flash("No active event!")
+    return redirect(url_for('events_page'))
+  g.active_event = db.event_get(g.active_event_id)
+
+  return render_template('admin_sessions.html')
+
+
+#######################################
+
+
+@app.route('/scores', methods=['GET','POST'])
 def scores_page():
   db = get_db()
   g.rules = get_rules(db)
@@ -579,6 +730,22 @@ def scores_page():
     flash("No active event!")
     return redirect(url_for('events_page'))
   g.active_event = db.event_get(g.active_event_id)
+  
+  action = request.form.get('action')
+
+  if action == 'finalize':
+    g.rules.event_finalize(db, g.active_event_id)
+    flash("Event scores finalized")
+    return redirect(url_for('scores_page'))
+    
+  elif action == 'recalc':
+    g.rules.event_recalc(db, g.active_event_id)
+    flash("Event scores recalculated")
+    return redirect(url_for('scores_page'))
+  
+  elif action is not None:
+    flash("Unkown form action %r" % action)
+    return redirect(url_for('scores_page'))
 
   # sort entries into car class
   g.class_entry_list = {}
@@ -599,19 +766,9 @@ def scores_page():
 
   return render_template('admin_scores.html')
 
-#######################################
-
-@app.route('/next_entry')
-def next_entry_json():
-  db = get_db()
-  db.reg_inc('.pc_admin_next_entry')
-  next_entry = db.reg_get('next_entry_id')
-  if next_entry is not None:
-    return jsonify(next_entry)
-  else:
-    return jsonify()
 
 #######################################
+
 
 @app.route('/debug/registry', methods=['GET','POST'])
 def debug_registry_page():
@@ -633,16 +790,15 @@ def debug_registry_page():
   # query settings
   return render_template('admin_debug_registry.html', reg_list=reg_list)
 
+
 #######################################
+
 
 @app.route('/debug')
 def debug_page():
   db = get_db()
   db.reg_inc('.pc_admin_debug')
-
-  output = "<h3>Threads:</h3>"
-  for t in threading.enumerate():
-    output += t.name + "<br/>"
+  output = ""
   output += "<h3>Page Counts:</h3>"
   output += "index = %r<br/>" % db.reg_get('.pc_admin_index', 0)
   output += "settings = %r<br/>" % db.reg_get('.pc_admin_settings', 0)
@@ -652,7 +808,9 @@ def debug_page():
   output += "scanner_data = %r<br/>" % db.reg_get('.pc_admin_scanner_data', 0)
   return output
 
+
 #######################################
+
 
 if __name__ == '__main__':
   # start dev server at localhost:8020

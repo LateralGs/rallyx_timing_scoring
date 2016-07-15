@@ -11,66 +11,76 @@ import sys, csv
 import config
 from sql_db import ScoringDatabase
 
-if len(sys.argv) < 3:
-  logging.error("usage: python import_csv.py <csv file> <segment> <command>")
+# handle mapping class names from msreg to our class identifiers
+class_mapping = {
+    'Stock AWD': 'SA',
+    'Prepared AWD':'PA',
+    'Mod AWD': 'MA',
+    'Stock FWD': 'SF',
+    'Prepared FWD':'PF',
+    'Mod FWD': 'MF',
+    'Stock RWD': 'SR',
+    'Prepared RWD':'PR',
+    'Mod RWD': 'MR',
+    }
+
+if len(sys.argv) < 1:
+  logging.error("usage: python import_csv.py <csv file>")
   sys.exit(1)
 
 csv_path = sys.argv[1]
-segment = sys.argv[2].lower()
-command = sys.argv[3].lower()
-
-# commands are:
-#   update - update existing drivers and entries, insert new ones
-#   insert_only - insert new drivers and entries only
-
-if command not in ('update', 'insert_only'):
-  logging.error("Invalid command, %r", command)
-  logging.info("Commands accepted: ['update', 'insert_only']")
-  sys.exit(1)
-
-logging.info("Segment = %r", segment)
 
 with ScoringDatabase(config.SCORING_DB_PATH) as db:
   active_event_id = db.reg_get_int("active_event_id")
   if active_event_id is None:
     logging.error("No active event set!")
     sys.exit(1)
+
+  rules = config.SCORING_RULES_CLASS()
+  rules.sync(db)
   
   with open(csv_path) as csv_file:
     reader = csv.DictReader(csv_file)
     logging.info(reader.fieldnames)
     for row in reader:
-      if row['Segment Name'].lower() == segment:
-        logging.debug(row)
-        # check if driver exists based on msreg unique id
-        driver = db.driver_by_msreg(row['Unique ID'])
-        if driver is None:
-          # TODO add ability to detect drivers without msreg number set based on name
-          driver_id = db.driver_insert(first_name=row['First Name'], last_name=row['Last Name'], msreg_number=row['Unique ID'], scca_number=row['Member #'], addr_city=row['City'], addr_state=row['State'], addr_zip=row['Zip Code'])
-          driver = db.driver_get(driver_id)
-          logging.info("Created driver, %r", driver)
-        elif command == 'update':
-          db.driver_update(driver_id=driver['driver_id'], first_name=row['First Name'], last_name=row['Last Name'], scca_number=row['Member #'], addr_city=row['City'], addr_state=row['State'], addr_zip=row['Zip Code'])
-          driver = db.driver_get(driver['driver_id'])
-          logging.info("Updated driver, %r", driver)
+      logging.debug(row)
+      
+      if 'Status' in row and row['Status'] == 'Canceled':
+        continue # skip people that have canceled but are still listed
 
-        if row['Class'] not in config.CAR_CLASSES:
-          logging.error("Invalid car class, %r", row['Class'])
+      # check if driver exists based on msreg unique id
+      driver = db.driver_by_msreg(row['Unique ID'])
+      if driver is None:
+        # TODO add ability to detect drivers without msreg number set based on name
+        driver_id = db.driver_insert(first_name=row['First Name'], last_name=row['Last Name'], msreg_number=row['Unique ID'], scca_number=row['Member #'], addr_city=row['City'], addr_state=row['State'], addr_zip=row['Zip Code'])
+        logging.info("Created driver, %r", driver_id)
+      else:
+        driver_id = driver['driver_id']
+        db.driver_update(driver_id=driver_id, first_name=row['First Name'], last_name=row['Last Name'], scca_number=row['Member #'], addr_city=row['City'], addr_state=row['State'], addr_zip=row['Zip Code'])
+        logging.info("Updated driver, %r", driver['driver_id'])
 
-        entry = db.entry_by_driver(active_event_id, driver['driver_id'])
-        if entry is None:
+      car_class = row['Class']
+
+      if car_class in class_mapping:
+        car_class = class_mapping[car_class]
+
+      if car_class not in rules.car_class_list:
+        logging.error("Invalid car class, %r", row['Class'])
+        continue
+
+      entry = db.entry_by_driver(active_event_id, driver_id)
+      if entry is None:
+        entry_note = "1st Event!" if row['1st Event?'] == 'Yes' else None
+        entry_id = db.entry_insert(event_id=active_event_id, driver_id=driver_id, car_number=row['No.'], car_year=row['Year'], car_make=row['Make'], car_model=row['Model'], car_color=row['Color'], entry_note=entry_note, car_class=car_class)
+        entry = db.entry_get(entry_id)
+        logging.info("Created entry, %r", entry_id)
+      else:
+        # make sure we dont clobber notes
+        if entry['entry_note'] is None:
           entry_note = "1st Event!" if row['1st Event?'] == 'Yes' else None
-          entry_id = db.entry_insert(event_id=active_event_id, driver_id=driver['driver_id'], car_year=row['Year'], car_make=row['Make'], car_model=row['Model'], car_color=row['Color'], entry_note=entry_note, car_class=row['Class'])
-          entry = db.entry_get(entry_id)
-          logging.info("Created entry, %r", entry)
-        elif command == 'update':
-          # make sure we dont clobber notes
-          if entry['entry_note'] is None:
-            entry_note = "1st Event!" if row['1st Event?'] == 'Yes' else None
-          else:
-            entry_note = entry['entry_note']
-          db.entry_update(entry_id=entry['entry_id'], car_year=row['Year'], car_make=row['Make'], car_model=row['Model'], car_color=row['Color'], entry_note=entry_note, car_class=row['Class'])
-          entry = db.entry_get(entry['entry_id'])
-          logging.info("Updated entry, %r", entry)
+        else:
+          entry_note = entry['entry_note']
+        db.entry_update(entry_id=entry['entry_id'], car_number=row['No.'], car_year=row['Year'], car_make=row['Make'], car_model=row['Model'], car_color=row['Color'], entry_note=entry_note, car_class=car_class)
+        logging.info("Updated entry, %r", entry['entry_id'])
 
 

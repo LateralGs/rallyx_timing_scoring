@@ -44,6 +44,13 @@ def get_db():
     db = g._database = ScoringDatabase(app.config['SCORING_DB_PATH'])
   return db
 
+def get_rules(db):
+  rules = getattr(g, '_rules', None)
+  if rules is None:
+    rules = g._rules = app.config['SCORING_RULES_CLASS']()
+  rules.sync(db)
+  return rules
+
 @app.teardown_appcontext
 def close_db(exception):
   db = getattr(g, '_database', None)
@@ -55,6 +62,7 @@ def close_db(exception):
 @app.route('/')
 def index_page():
   db = get_db()
+  g.rules = get_rules(db)
   db.reg_inc('.pc_scoreboard_index')
 
   g.active_event_id = db.reg_get_int('active_event_id')
@@ -63,7 +71,7 @@ def index_page():
     return "No active event."
 
   g.active_event = db.event_get(g.active_event_id)
-  g.max_runs = db.reg_get_int("max_runs", app.config['DEFAULT_MAX_RUNS'])
+  g.auto_refresh = request.args.get('auto_refresh')
 
   # sort entries into car class
   g.class_entry_list = {}
@@ -71,16 +79,16 @@ def index_page():
   for entry in g.entry_driver_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
-    if entry['show_scores']:
+    if entry['scores_visible']:
       g.class_entry_list[entry['car_class']].append(entry)
 
   # sort each car class by event_time_ms
   for car_class in g.class_entry_list:
-    g.class_entry_list[car_class].sort(cmp=time_cmp, key=lambda e: e['event_time_ms'])
+    g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
   for entry in g.entry_driver_list:
-    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.max_runs)
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs)
 
   return render_template('scoreboard_index.html')
 
@@ -88,6 +96,7 @@ def index_page():
 @app.route('/finish')
 def finish_page():
   db = get_db()
+  g.rules = get_rules(db)
   db.reg_inc('.pc_scoreboard_finish')
 
   g.active_event_id = db.reg_get_int('active_event_id')
@@ -95,7 +104,8 @@ def finish_page():
   if g.active_event_id is None:
     return "No active event."
 
-  g.max_runs = db.reg_get_int("max_runs", app.config['DEFAULT_MAX_RUNS'])
+  g.active_event = db.event_get(g.active_event_id)
+  g.auto_refresh = request.args.get('auto_refresh')
 
   g.latest_runs = []
   for run in db.run_list(event_id=g.active_event_id, state_filter=('scored',), rev_sort=True, limit=10):
@@ -120,6 +130,7 @@ def finish_page():
 @app.route('/sectors')
 def sectors_page():
   db = get_db()
+  g.rules = get_rule(db)
   db.reg_inc('.pc_scoreboard_finish')
 
   g.active_event_id = db.reg_get_int('active_event_id')

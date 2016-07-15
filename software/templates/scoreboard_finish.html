@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>ORG RallyX Live Scoring</title>
+  <title>RallyX Live Scoring</title>
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <!--<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />-->
 
@@ -66,9 +66,12 @@
   }
 
   </style>
+  {% if g.auto_refresh %}
+  <meta http-equiv="refresh" content="{{g.auto_refresh}}">
+  {% endif %}
 </head>
 <body>
-  <h1>ORG RallyX Live Scoring</h1>
+  <h1>RallyX Live Scoring</h1>
   <span>All scores are provisional pending fianal audit by event officials.</span>
   <h3><a href="{{url_for('index_page')}}">Event Scores</a></h3>
   <div>
@@ -94,7 +97,7 @@
           <td>{{run.cones if run.cones > 0 else '-'}}</td>
           <td>{{run.gates if run.gates > 0 else '-'}}</td>
           <td>{{run.total_time}}</td>
-          <td style="text-align: left">{{run.run_count}} <b style="color: red">{{'FINAL RUN!' if run.run_count >= g.max_runs}}</b></td>
+          <td style="text-align: left">{{run.run_count}} <b style="color: red">{{'FINAL RUN!' if run.run_count >= g.rules.max_runs}}</b></td>
         </tr>
         {% else %}
         <tr class="odd">

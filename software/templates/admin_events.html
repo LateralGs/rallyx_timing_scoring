@@ -28,7 +28,7 @@
     <form action="{{url_for('events_page')}}"  method='POST'>
       <p><label>Name:</label>*<input type="text" size=40 name="name" required /></p>
       <p><label>Location:</label>*<input type="text" size=40 name="location" value="{{config.DEFAULT_LOCATION}}" required /></p>
-      <p><label>Date:</label>*<input type="date" size=40 name="date" value="{{g.default_date}}" required /></p>
+      <p><label>Date:</label>*<input type="date" size=40 name="event_date" value="{{g.default_date}}" required /></p>
       <p><label>Season:</label>*<input type="text" size=40 name="season_name" value="{{config.DEFAULT_SEASON}}" required /></p>
       <p><label>Organization:</label> <input type="text" size=40 name="organization" value="{{config.DEFAULT_ORGANIZATION}}"/></p>
       <p><label>Season Points:</label>
@@ -80,8 +80,8 @@
       <th colspan=12>Active Event</th>
     </tr>
     {% endif %}
-    <tr class="{{'active' if event.event_id == g.active_event_id}}">
-      <td><button onclick='$("#edit_{{event.event_id}}").toggle(); $("html, body").animate({scrollTop: $("#edit_{{event.event_id}}").offset().top});'>Edit</button></td>
+    <tr class="{{'active' if event.event_id == g.active_event_id}}" id="{{event.event_id}}">
+      <td><button onclick='$("#edit_{{event.event_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{event.event_id}}").offset().top});'>Edit</button></td>
       <td>
         <form action="{{url_for('events_page')}}"  method='POST'>
           <input type="hidden" name="event_id" value="{{event.event_id}}" />

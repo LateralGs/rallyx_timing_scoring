@@ -13,7 +13,7 @@ class BasicRules(object):
     self.gate_penalty = kwarg.get('gate_penalty', 10)
     self.min_runs = kwarg.get('min_runs', 3)
     self.max_runs = kwarg.get('max_runs', 5)
-    self.drop_runs = kwarg.get('drop_runs', 0) # not used for BasicRules
+    self.drop_runs = kwarg.get('drop_runs', 0) # not used for BasicRules, placeholder for those that do
     self.car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR']
     self.car_class_names = {
       'SA':'Stock All',
@@ -26,6 +26,16 @@ class BasicRules(object):
       'PR':'Prepared Rear',
       'MR':'Modified Rear',
       'TO':'Time Only'}
+
+
+  def sync(self, db):
+    if not db:
+      return 
+    # make sure we have the current settings from the database for this instance
+    event = db.event_get(db.reg_get_int('active_event_id'))
+    if event:
+      self.max_runs = event['max_runs']
+      self.drop_runs = event['drop_runs']
 
 
   def run_recalc(self, db, run_id):
@@ -83,19 +93,37 @@ class BasicRules(object):
     scored_run_count = len(scored_runs)
     self.log.debug("scored: %r", scored_runs)
 
-    event_time_ms = 0
+    penalty_time_ms = db.query_singleton("SELECT SUM(time_ms) FROM penalties WHERE entry_id=?", entry_id)
+    penalty_time = format_time(penalty_time_ms, None)
+
+    event_time_ms = None
     event_time = None
+    event_dnf = False
     for run in scored_runs:
       if run['start_time_ms'] == 0 or run['finish_time_ms'] == 0:
-        event_time_ms = None
-        event_time = "DNF"
+        event_dnf = True
         break;
       elif run['total_time_ms']:
-        event_time_ms += run['total_time_ms']
-    event_time = format_time(event_time_ms)
+        if event_time_ms is None:
+          event_time_ms = run['total_time_ms']
+        else:
+          event_time_ms += run['total_time_ms']
 
-    db.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, scored_runs=scored_run_count)
+    if event_dnf:
+      event_time = "DNF"
+      event_time_ms = 0
+    elif penalty_time_ms is None:
+      event_time = format_time(event_time_ms)
+    else:
+      event_time_ms += penalty_time_ms
+      event_time = format_time(event_time_ms)
 
+    db.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, event_penalties=penalty_time, scored_runs=scored_run_count)
+
+    self.run_count_recalc(db, entry_id)
+
+
+  def run_count_recalc(self, db, entry_id):
     # update run counts
     entry_runs = db.run_list(entry_id=entry_id)
     run_count = 0
@@ -203,9 +231,59 @@ class ORG_Rules(BasicRules):
 ###########################################################
 ###########################################################
 
-def NWRA_Rules(BasicRules):
+class NWRA_Rules(BasicRules):
   """ NorthWest Rally Asscociation rules based on 2016 SCCA RallyX rules and regional supplimental rules """
-  pass
+
+  def __init__(self, **kwarg):
+    super(NWRA_Rules,self).__init__(**kwarg)
+
+
+  def bogey_time(self, db, entry_id, run_count):
+    car_class = db.query_singleton("SELECT car_class FROM entries WHERE entry_id=?", entry_id)
+    time_ms = db.query_singleton("SELECT MAX(total_time_ms) FROM runs, entries WHERE runs.entry_id=entries.entry_id AND runs.run_count=? AND entries.car_class=?", run_count, car_class)
+    if time_ms:
+      return time_ms
+    else:
+      return 0
+  
+
+  def entry_recalc(self, db, entry_id):
+    # calculate event_time_ms, event_time
+    entry_runs = db.run_list(entry_id=entry_id, state_filter=('scored',))
+    self.log.debug(entry_runs)
+
+    # limit scored runs to max_runs
+    scored_runs = entry_runs[:self.max_runs]
+    scored_run_count = len(scored_runs)
+    self.log.debug("scored: %r", scored_runs)
+
+    penalty_time_ms = db.query_singleton("SELECT SUM(time_ms) FROM penalties WHERE entry_id=?", entry_id)
+    penalty_time = format_time(penalty_time_ms, None)
+
+    event_time_ms = None
+    event_time = None
+    for run in scored_runs:
+      if run['start_time_ms'] == 0 or run['finish_time_ms'] == 0:
+        if event_time_ms is None:
+          event_time_ms = self.bogey_time(db, entry_id, run['run_count'])
+        else:
+          event_time_ms += self.bogey_time(db, entry_id, run['run_count'])
+      elif run['total_time_ms']:
+        if event_time_ms is None:
+          event_time_ms = run['total_time_ms']
+        else:
+          event_time_ms += run['total_time_ms']
+
+    if event_time_ms is not None:
+      if penalty_time_ms is None:
+        event_time = format_time(event_time_ms)
+      else:
+        event_time_ms += penalty_time_ms
+        event_time = format_time(event_time_ms)
+
+    db.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, event_penalties=penalty_time, scored_runs=scored_run_count)
+
+    self.run_count_recalc(db, entry_id)
 
 
 ###########################################################

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>ORG RallyX Live Scoring</title>
+  <title>RallyX Live Scoring</title>
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
-  <!--<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />-->
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+  <script type=text/javascript src="{{url_for('static', filename='jquery.floatThead.min.js') }}"></script>
 
   <style>
   table.latest, table.fastest, table.scores, table.cone_killer, table.lost_and_found {
@@ -13,7 +14,7 @@
 
   th {
     border: 1px solid black;
-    background: #ccc;
+    background: #ddd;
     text-align: center;
     padding-left: 4px;
     padding-right: 4px;
@@ -53,6 +54,11 @@
     white-space: nowrap;
     text-align: left;
   }
+  
+  td.car_info {
+    white-space: nowrap;
+    text-align: left;
+  }
 
   td.drop {
     //font-weight: bold;
@@ -65,47 +71,71 @@
   body {
     font-family: Monospace;
   }
+  
+  a.anchor {
+    padding-top: 45px;
+  }
 
   </style>
+  {% if g.auto_refresh %}
+  <meta http-equiv="refresh" content="{{g.auto_refresh}}">
+  {% endif %}
+<script>
+$(document).ready(function(){
+  $('table.scores').floatThead();
+});
+</script>
 </head>
 <body>
-  <h1>ORG RallyX Live Scoring</h1>
+  <h1>RallyX Live Scoring</h1>
   <span>All scores are provisional pending fianal audit by event officials.</span>
   <h3><a href="{{url_for('finish_page')}}">Latest runs</a></h3>
 
   <div>
     <h2>Event Scores</h2>
+    <a name="top" />
     <span>()=Drop Run</span>
     <table class="scores">
+      <thead>
       <tr>
-        <th colspan=3>Driver</th>
-        {% for num in range(g.max_runs) %}
+        <th colspan=4></th>
+        {% for num in range(g.rules.max_runs) %}
         <th colspan=4>Run {{num+1}}</th>
         {% endfor %}
-        <th colspan=2>Event</th>
+        <th colspan=3>Event</th>
       </tr>
       <tr>
         <th>Class</td>
-        <th>Car</td>
+        <th>#</td>
         <th>Name</td>
-        {% for num in range(g.max_runs) %}
+        <th>Car</th>
+        {% for num in range(g.rules.max_runs) %}
         <th>Raw</th>
         <th>C</th>
         <th>G</th>
         <th>Total</th>
         {% endfor %}
+        <th>Penalties</th>
         <th>Time</th>
         <th>In Class</th>
       </tr>
+      </thead>
       <tr class="break"></tr>
-      {% for car_class in config.CAR_CLASSES %}
+      {% for car_class in g.rules.car_class_list %}
       <tbody class="{{ loop.cycle('blue','green','red','yellow','cyan','magenta') }}">
         {% if car_class in g.class_entry_list %}
+        <tr class="odd">
+          <td colspan="{{(4*g.rules.max_runs) + 7}}">
+            <a name="{{car_class}}" class="anchor"/>
+              {{g.rules.car_class_names[car_class]}}
+          </td>
+        </tr>
         {% for entry in g.class_entry_list[car_class] %}
         <tr class="{{ loop.cycle('even', 'odd') }}">
           <td>{{entry.car_class}}</td>
           <td>{{entry.car_number}}</td>
-          <td class="driver_name run_border">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</td>
+          <td class="driver_name">{{entry.alt_name if entry.alt_name else entry.first_name}} {{entry.last_name}}</td>
+          <td class="car_info run_border">{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</td>
           {% for run in g.entry_run_list[entry.entry_id] %}
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.raw_time}}</td>
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.cones if run.cones > 0 else '-'}}</td>
@@ -116,18 +146,14 @@
             <td class="run_border">{{run.total_time}}</td>
             {% endif%}
           {% endfor %}
-          {% for i in range(g.max_runs-entry.scored_runs) %}
+          {% for i in range(g.rules.max_runs-entry.scored_runs) %}
           <td class="run_border" colspan=4>&nbsp;</td>
           {% endfor %}
+          <td>{{entry.event_penalties if entry.event_penalties}}</td>
           <td>{{entry.event_time if entry.event_time}}</td>
           <td>{{loop.index if entry.event_time}}</td>
         </tr>
         {% endfor %}
-        {% else %}
-        <tr class="even">
-          <td>{{car_class}}</td>
-          <td colspan="{{(4*g.max_runs) + 5}}">None</td>
-        </tr>
         {% endif %}
       </tbody>
       <tr class="break"></tr>
