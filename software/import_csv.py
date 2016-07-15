@@ -45,7 +45,7 @@ with ScoringDatabase(config.SCORING_DB_PATH) as db:
     for row in reader:
       logging.debug(row)
       
-      if 'Status' in row and row['Status'] == 'Canceled':
+      if 'Status' in row and row['Status'] == 'Cancelled':
         continue # skip people that have canceled but are still listed
 
       # check if driver exists based on msreg unique id
