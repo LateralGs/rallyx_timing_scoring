@@ -843,10 +843,10 @@ def export_results_page():
         
         count = g.rules.max_runs
         for run in g.entry_run_list[entry['entry_id']]:
-          row.append(run.raw_time)
-          row.append(run.cones)
-          row.append(run.gates)
-          row.append(run.total_time)
+          row.append(run['raw_time'])
+          row.append(run['cones'])
+          row.append(run['gates'])
+          row.append(run['total_time'])
           count -= 1
 
         # add blanks for missing runs
