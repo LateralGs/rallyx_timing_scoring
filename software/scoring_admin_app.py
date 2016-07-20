@@ -12,6 +12,8 @@ from util import *
 from sql_db import ScoringDatabase
 from time import time
 import datetime
+import csv
+from cStringIO import StringIO
 
 
 #######################################
@@ -766,6 +768,104 @@ def scores_page():
 
   return render_template('admin_scores.html')
 
+
+#######################################
+
+@app.route('/export_results')
+def export_results_page():
+  db = get_db()
+  g.rules = get_rules(db)
+  db.reg_inc('.pc_admin_export_results')
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+  if not db.event_exists(g.active_event_id):
+    flash("No active event!")
+    return redirect(url_for('events_page'))
+  g.active_event = db.event_get(g.active_event_id)
+  
+  output_format = request.form.get('format', 'csv')
+
+  # sort entries into car class
+  g.class_entry_list = {}
+  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
+  for entry in g.entry_driver_list:
+    if entry['car_class'] not in g.class_entry_list:
+      g.class_entry_list[entry['car_class']] = []
+    if entry['scores_visible']:
+      g.class_entry_list[entry['car_class']].append(entry)
+
+  # sort each car class by event_time_ms and run_count
+  for car_class in g.class_entry_list:
+    g.class_entry_list[car_class].sort(cmp=entry_cmp)
+
+  g.entry_run_list = {}
+  for entry in g.entry_driver_list:
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs)
+
+  output = StringIO()
+
+  writer = csv.writer(output)
+
+  row = []
+  row.append('car_class')
+  row.append('car_number')
+  row.append('first_name')
+  row.append('last_name')
+  row.append('car_year')
+  row.append('car_make')
+  row.append('car_model')
+  row.append('car_color')
+  
+  for i in range(g.rules.max_runs):
+    row.append('raw[%d]' % i)
+    row.append('C[%d]' % i)
+    row.append('G[%d]' % i)
+    row.append('total[%d]' % i)
+
+  row.append('event_penalties')
+  row.append('event_total_time')
+
+  writer.writerow(row)
+
+  for car_class in g.rules.car_class_list:
+    if car_class in g.class_entry_list:
+      for entry in g.class_entry_list[car_class]:
+        row = []
+        row.append(entry['car_class'])
+        row.append(entry['car_number'])
+        first_name = entry['alt_name'] if entry['alt_name'] else entry['first_name']
+        row.append(first_name)
+        row.append(entry['last_name'])
+        row.append(entry['car_year'])
+        row.append(entry['car_make'])
+        row.append(entry['car_model'])
+        row.append(entry['car_color'])
+        
+        count = g.rules.max_runs
+        for run in g.entry_run_list[entry['entry_id']]:
+          row.append(run.raw_time)
+          row.append(run.cones)
+          row.append(run.gates)
+          row.append(run.total_time)
+          count -= 1
+
+        # add blanks for missing runs
+        for i in range(count):
+          row.append('')
+          row.append('')
+          row.append('')
+          row.append('')
+        
+        row.append(entry['event_penalties'])
+        row.append(entry['event_time'])
+        
+        writer.writerow(row)
+
+
+  response.headers['Content-Disposition'] = 'attachment; filename="%s_results.csv"' % g.active_event['event_date']
+  response.mimetype = 'text/csv'
+
+  return output.getvalue()
 
 #######################################
 
