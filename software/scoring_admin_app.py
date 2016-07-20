@@ -861,11 +861,11 @@ def export_results_page():
         
         writer.writerow(row)
 
-
+  response = make_response(output.getvalue(), 200)
   response.headers['Content-Disposition'] = 'attachment; filename="%s_results.csv"' % g.active_event['event_date']
   response.mimetype = 'text/csv'
 
-  return output.getvalue()
+  return response
 
 #######################################
 
