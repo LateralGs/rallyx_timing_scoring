@@ -817,10 +817,10 @@ def export_results_page():
   row.append('car_color')
   
   for i in range(g.rules.max_runs):
-    row.append('raw[%d]' % i)
-    row.append('C[%d]' % i)
-    row.append('G[%d]' % i)
-    row.append('total[%d]' % i)
+    row.append('raw[%d]' % (i+1))
+    row.append('C[%d]' % (i+1))
+    row.append('G[%d]' % (i+1))
+    row.append('total[%d]' % (i+1))
 
   row.append('event_penalties')
   row.append('event_total_time')
