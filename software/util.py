@@ -123,6 +123,8 @@ def parse_int(num_str, default=None):
     return int(num_str)
   except ValueError:
     return default
+  except TypeError:
+    return default
 
 #######################################
 
