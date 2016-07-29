@@ -510,11 +510,15 @@ class ScoringDatabase(object):
   def driver_by_entry(self, entry_id):
     return self.con.execute("SELECT drivers.* FROM drivers, event_entries WHERE driver.driver_id=event_entries.driver_id AND event_entries.entry_id=? LIMIT 1", (entry_id,)).fetchone()
 
-  def entry_by_card(self, event_id, card_number):
-    return self.con.execute("SELECT entries.* FROM entries, drivers WHERE entries.driver_id=drivers.driver_id AND entries.event_id=? AND drivers.card_number=? LIMIT 1", (event_id, card_number)).fetchone()
+  def entries_by_card(self, event_id, card_number):
+    return self.con.execute("SELECT entries.* FROM entries, drivers WHERE entries.driver_id=drivers.driver_id AND entries.event_id=? AND drivers.card_number=?", (event_id, card_number)).fetchall()
 
   def driver_by_card(self, card_number):
     return self.con.execute("SELECT * FROM drivers WHERE card_number=? LIMIT 1", (card_number,)).fetchone()
+  
+  def entries_session_update(self, event_id, car_class, class_session):
+    self.con.execute("UPDATE entries SET race_session=? WHERE car_class=? AND event_id=?", (class_session, car_class, event_id))
+    self.con.commit()
 
   def run_started(self, event_id, time_ms, entry_id):
     rowid = self.con.execute("INSERT INTO runs (event_id, start_time_ms, entry_id, state) VALUES (?,?,?,'started')", (event_id, time_ms, entry_id)).lastrowid

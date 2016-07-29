@@ -35,16 +35,30 @@ class RFIDReader(SerialHandler):
     return None
 
   @serial_wrapper
-  def led_off(self):
-    self.serial.setRTS(1)
+  def send_ack(self):
+    self.serial.write('a')
 
   @serial_wrapper
-  def led_on(self):
-    self.serial.setRTS(0)
+  def beep(self, count=1):
+    self.serial.write('b' * count)
+  
+  @serial_wrapper
+  def pause(self, count=1):
+    self.serial.write('p' * count)
 
   @serial_wrapper
-  def beep(self, time_ms=100):
-    self.serial.write(chr(0b11001100)*time_ms)
+  def quiet_mode(self):
+    self.serial.write('q')
 
 
+if __name__ == "__main__":
+  import sys
+  with RFIDReader(sys.argv[1]) as reader:
+    while True:
+      data = reader.read()
+      if data:
+        reader.send_ack()
+        reader.pause(2)
+        reader.beep(2)
+        print repr(data)
 

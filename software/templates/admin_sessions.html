@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 20em;
+    display: inline-block;
+  }
+  button.session {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  button.red {
+    border: 1px solid #fbb;
+    background: #fbb;
+  }
+  button.green {
+    border: 1px solid black;
+    background: #bfb;
+    font-weight: bold;
+  }
+</style>
+<script>
+$(document).ready(function(){
+  $( ".b1" ).click(function() {
+    $(this).removeClass('red').addClass('green')
+    $(this).siblings(".b2").removeClass('green').addClass('red');
+    $(this).siblings(".b3").removeClass('green').addClass('red');
+    $(this).siblings(".b4").removeClass('green').addClass('red');
+    $(this).siblings(".ba").removeClass('green').addClass('red');
+    $(this).siblings(".session_select").val("1");
+  });
+  $( ".b2" ).click(function() {
+    $(this).siblings(".b1").removeClass('green').addClass('red');
+    $(this).removeClass('red').addClass('green')
+    $(this).siblings(".b3").removeClass('green').addClass('red');
+    $(this).siblings(".b4").removeClass('green').addClass('red');
+    $(this).siblings(".ba").removeClass('green').addClass('red');
+    $(this).siblings(".session_select").val("2");
+  });
+  $( ".b3" ).click(function() {
+    $(this).siblings(".b1").removeClass('green').addClass('red');
+    $(this).siblings(".b2").removeClass('green').addClass('red');
+    $(this).removeClass('red').addClass('green')
+    $(this).siblings(".b4").removeClass('green').addClass('red');
+    $(this).siblings(".ba").removeClass('green').addClass('red');
+    $(this).siblings(".session_select").val("3");
+  });
+  $( ".b4" ).click(function() {
+    $(this).siblings(".b1").removeClass('green').addClass('red');
+    $(this).siblings(".b2").removeClass('green').addClass('red');
+    $(this).siblings(".b3").removeClass('green').addClass('red');
+    $(this).removeClass('red').addClass('green')
+    $(this).siblings(".ba").removeClass('green').addClass('red');
+    $(this).siblings(".session_select").val("4");
+  });
+  $( ".ba" ).click(function() {
+    $(this).siblings(".b1").removeClass('green').addClass('red');
+    $(this).siblings(".b2").removeClass('green').addClass('red');
+    $(this).siblings(".b3").removeClass('green').addClass('red');
+    $(this).siblings(".b4").removeClass('green').addClass('red');
+    $(this).removeClass('red').addClass('green')
+    $(this).siblings(".session_select").val("-1");
+  });
+  $( ".session_select" ).change(function() {
+    $(this).siblings(".b1").removeClass('green').addClass('red');
+    $(this).siblings(".b2").removeClass('green').addClass('red');
+    $(this).siblings(".b3").removeClass('green').addClass('red');
+    $(this).siblings(".b4").removeClass('green').addClass('red');
+    $(this).siblings(".ba").removeClass('green').addClass('red');
+    switch($(this).val())
+    {
+      case "1":
+        $(this).siblings(".b1").removeClass('red').addClass('green')
+        break;
+      case "2":
+        $(this).siblings(".b2").removeClass('red').addClass('green')
+        break;
+      case "3":
+        $(this).siblings(".b3").removeClass('red').addClass('green')
+        break;
+      case "4":
+        $(this).siblings(".b4").removeClass('red').addClass('green')
+        break;
+      case "-1":
+        $(this).siblings(".ba").removeClass('red').addClass('green')
+        break;
+    }
+  });
+});
+</script>
+</head>
+<body>
+  <h1>Scoring Admin - Race Sessions</h2>
+  {% include 'admin_nav.html' %}
+  {% include 'flash_message.html' %}
+
+  <div class="layout_box">
+    <form method="POST">
+      <h3>Current Session:</h3>
+      <select name="race_session">
+        {% for i in range(1,5) %}
+        <option {{'selected' if g.race_session == i}}>{{i}}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" name="action" value="set_session">Set Active Session</button>
+  </div>
+  <div class="layout_box">
+    <form method="POST">
+      {% for car_class in g.rules.car_class_list %}
+      <p>
+        <label>{{car_class}}: {{g.rules.car_class_names[car_class]}}</label>
+        <select name="{{car_class}}_session" class="session_select">
+          {% for i in range(1,5) %}
+          <option {{'selected' if g.class_sessions[car_class] == i}}>{{i}}</option>
+          {% endfor %}
+          <option value="-1" {{'selected' if g.class_sessions[car_class] == -1}}>*</option>
+        </select>
+        &nbsp;
+        <button type="button" class="b1 session {{'green' if g.class_sessions[car_class] == 1 else 'red'}}">1</button>
+        <button type="button" class="b2 session {{'green' if g.class_sessions[car_class] == 2 else 'red'}}">2</button>
+        <button type="button" class="b3 session {{'green' if g.class_sessions[car_class] == 3 else 'red'}}">3</button>
+        <button type="button" class="b4 session {{'green' if g.class_sessions[car_class] == 4 else 'red'}}">4</button>
+        <button type="button" class="ba session {{'green' if g.class_sessions[car_class] == -1 else 'red'}}">*</button>
+      </p>
+      {% endfor %}
+      <button type="submit" name="action" value="update">Save Session Settings</button>
+    </form>
+    </table>
+  </div>
+</body>
+</html>
+

@@ -17,6 +17,7 @@ def read_timeout_ex(s,n=1):
 
 
 def decode_license(data):
+  """ Decode US Drivers License from a PDF417 barcode """
   try:
     sio = StringIO(data)
     if sio.read() != '@':

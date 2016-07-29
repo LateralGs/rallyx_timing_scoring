@@ -143,6 +143,8 @@ $(document).ready(function(){
 
     <div class="layout_box status">
       <h2>Status</h2>
+      <p><label>Session:</label><b>{{g.race_session}}</b></p>
+      <hr/>
       <p><label>Start:</label><b>{{'Ready' if g.start_ready else 'DISABLED'}}</b></p>
       <p><label>Finish:</label><b>{{'Ready' if g.finish_ready else 'DISABLED'}}</b></p>
       <hr/>
@@ -198,18 +200,20 @@ $(document).ready(function(){
     <table class="layout"><tr><td>
     <div class="layout_box" style="padding-left: 16px; padding-right:16px">
       {% if g.next_entry_driver %}
-      <h2>Next: {{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}}</h2>
+      <h2>Next: {{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}} <span style="color: red">{{g.next_entry_msg if g.next_entry_msg}}</span></h2>
       <h2>Run: {{g.next_entry_run_count+1}} <span style="color: red">{{'LAST RUN!' if g.next_entry_run_count+1 == g.active_event['max_runs']}}{{'EXTRA RUN!' if g.next_entry_run_count >= g.active_event['max_runs']}}</span></h2>
       {% else %}
-      <h2>Next: None</h2>
+      <h2>Next: None <span style="color: red">{{g.next_entry_msg if g.next_entry_msg}}</span></h2>
       <h2>Run:</h2>
       {% endif %}
       <form action="{{url_for('timing_page')}}"  method="POST">
         <select name="next">
           <option disabled selected>-- Select Entry --</option>
           {% for entry in g.entry_driver_list %}
+          {% if entry.race_session is none or entry.race_session == '-1' or entry.race_session == g.race_session %}
           <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
           <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
+          {% endif %}
           {% else %}
           <option disabled>None</option>
           {% endfor %}
@@ -304,7 +308,7 @@ $(document).ready(function(){
                 <select class="run_state submit_save" name="state">
                   <option value="started" {{'selected' if run.state == 'started'}}>Started</option>
                   <option value="finished" {{'selected' if run.state == 'finished'}}>Finished</option>
-                  <option value="scored" {{'selected' if run.state == 'scored'}}>Scored</option>
+                  <option value="scored" {{'selected' if run.state == 'scored'}} {{'disabled' if run.state =='started'}}>Scored</option>
                   <option value="tossout" {{'selected' if run.state == 'tossout'}}>Toss Out</option>
                 </select>
               </td>
@@ -337,14 +341,16 @@ $(document).ready(function(){
               <td colspan="2">
                 <select name="entry_id" class="entry_select">
                   <option disabled selected>-- Select Entry --</option>
-                  <option>None</option>
+                  <option disabled></option>
+                  <option>-- None --</option>
+                  <option disabled></option>
                   {% for entry in g.entry_driver_list %}
                   <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
                   <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
                   {% endfor %}
                 </select>
               </td>
-              <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left submit_save" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" /></td>
+              <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left submit_save" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" placeholder="{{g.car_dict[run.entry_id]}}" /></td>
               <td><button type="reset" class="run_reset" tabindex=1>Reset</button></td>
 
             <!-- END THIRD ROW -->

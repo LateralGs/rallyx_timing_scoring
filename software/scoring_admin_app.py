@@ -14,6 +14,8 @@ from time import time
 import datetime
 import csv
 from cStringIO import StringIO
+from serial.tools.list_ports import comports
+from glob import glob
 
 
 #######################################
@@ -101,6 +103,11 @@ def events_page():
       flash("Invalid event_id")
     return redirect(url_for('events_page'));
 
+  elif action == 'deactivate':
+    db.reg_set('active_event_id', None)
+    flash("Event de-activated")
+    return redirect(url_for('events_page'));
+
   elif action == 'update':
     event_id = request.form.get('event_id')
     if not db.event_exists(event_id):
@@ -184,7 +191,7 @@ def timing_page():
   active_event_id = db.reg_get_int('active_event_id')
   logging.debug("active_event_id = %r", active_event_id)
   if not db.event_exists(active_event_id):
-    flash("No active event!")
+    flash("No active event!", 'error')
     return redirect(url_for('events_page'))
 
   if 'entry_filter' in request.args:
@@ -228,10 +235,12 @@ def timing_page():
   elif action == 'set_next':
     if request.form.get('next'):
       db.reg_set('next_entry_id',request.form.get('next'))
+      db.reg_set('next_entry_msg', None)
     return redirect(url_for('timing_page'))
 
   elif action == 'clear_next':
     db.reg_set('next_entry_id', None)
+    db.reg_set('next_entry_msg', None)
     return redirect(url_for('timing_page'))
 
   elif action == 'set_filter':
@@ -304,6 +313,11 @@ def timing_page():
       run_data['start_time_ms'] = None
     if request.form.get('state') == 'started' and run_data.get('finsih_time_ms') == 0:
       run_data['finish_time_ms'] = None
+
+    if run_data.get('state', request.form.get('old_state')) == 'scored' and run_data.get('finish_time_ms') is None and run_data.get('start_time_ms') != 0:
+      flash("Invalid raw time, unable to set state to 'scored'", 'error')
+      flash("Setting state to 'finished'", 'warning')
+      run_data['state'] = 'finished'
 
     logging.debug(run_data)
     db.run_update(run_id, **run_data)
@@ -414,6 +428,12 @@ def timing_page():
   g.hardware_ok = bool(time() - db.reg_get_float('hardware_watchdog', 0) < 3)
   g.start_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_start
   g.finish_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_finish
+  g.race_session = db.reg_get('race_session')
+  g.next_entry_msg = db.reg_get('next_entry_msg')
+
+  g.car_dict = {}
+  for entry in g.entry_driver_list:
+    g.car_dict[entry['entry_id']] = "%s %s %s %s" % (entry['car_color'], entry['car_year'], entry['car_make'], entry['car_model'])
 
   return render_template('admin_timing.html')
 
@@ -429,7 +449,7 @@ def entries_page():
 
   active_event_id = db.reg_get_int('active_event_id')
   if not db.event_exists(active_event_id):
-    flash("No active event!")
+    flash("No active event!", 'error')
     return redirect(url_for('events_page'))
 
   action = request.form.get('action')
@@ -472,9 +492,6 @@ def entries_page():
     for key in db.columns['entries']:
       if key in ['entry_id']:
         continue # ignore
-      elif key == 'rfid_number':
-        # parse the number to validate and remove leading zeros
-        entry_data[key] = parse_int(request.form.get(key))
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
     if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
@@ -482,6 +499,7 @@ def entries_page():
     elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
       flash("Invalid car class for new entry, no entry created.", 'error')
     else:
+      entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
       if db.entry_by_driver(active_event_id, entry_data['driver_id']):
         flash("Entry already exists for driver! Creating new entry anyways.", 'warning')
       entry_id = db.entry_insert(**entry_data)
@@ -497,11 +515,9 @@ def entries_page():
     for key in db.columns['entries']:
       if key in ['entry_id']:
         continue # ignore
-      elif key == 'rfid_number':
-        # parse the number to validate and remove leading zeros
-        entry_data[key] = parse_int(request.form.get(key))
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
+    entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
     db.entry_update(entry_id, **entry_data)
     flash("Entry changes saved")
     return redirect(url_for('entries_page'))
@@ -536,9 +552,6 @@ def drivers_page():
   db.reg_inc('.pc_admin_drivers')
 
   active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(active_event_id):
-    flash("No active event!")
-    return redirect(url_for('events_page'))
 
   action = request.form.get('action')
 
@@ -559,6 +572,8 @@ def drivers_page():
     for key in db.columns['drivers']:
       if key in ['driver_id']:
         continue # ignore
+      elif key == 'card_number':
+        driver_data[key] = parse_int(request.form.get(key))
       elif key in request.form:
         driver_data[key] = clean_str(request.form.get(key))
     driver_id = db.driver_insert(**driver_data)
@@ -574,6 +589,8 @@ def drivers_page():
     for key in db.columns['drivers']:
       if key in ['driver_id']:
         continue # ignore
+      elif key == 'card_number':
+        driver_data[key] = parse_int(request.form.get(key))
       elif key in request.form:
         driver_data[key] = clean_str(request.form.get(key))
     db.driver_update(driver_id, **driver_data)
@@ -601,7 +618,7 @@ def penalties_page():
 
   g.active_event_id = db.reg_get_int('active_event_id')
   if not db.event_exists(g.active_event_id):
-    flash("No active event!")
+    flash("No active event!", 'error')
     return redirect(url_for('events_page'))
   g.active_event = db.event_get(g.active_event_id)
 
@@ -703,20 +720,85 @@ def penalties_page():
 #######################################
 
 
-@app.route('/sessions')
+@app.route('/sessions', methods=['GET','POST'])
 def sessions_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_penalties')
+  db.reg_inc('.pc_admin_sessions')
 
   g.active_event_id = db.reg_get_int('active_event_id')
   if not db.event_exists(g.active_event_id):
-    flash("No active event!")
+    flash("No active event!", 'error')
     return redirect(url_for('events_page'))
   g.active_event = db.event_get(g.active_event_id)
 
+  action = request.form.get('action')
+
+  if action == 'update':
+    for car_class in g.rules.car_class_list:
+      class_session = request.form.get("%s_session" % car_class)
+      if class_session not in ('1','2','3','4','-1'):
+        class_session = '-1'
+      db.reg_set("%s_session" % car_class, class_session)
+      db.entries_session_update(g.active_event_id, car_class, class_session)
+
+    flash("Class sessions updated")
+    return redirect(url_for('sessions_page'))
+
+  elif action == 'set_session':
+    race_session = request.form.get('race_session')
+    if race_session not in ('1','2','3','4'):
+      race_session = '1'
+    db.reg_set('race_session', race_session)
+    flash("Active race session updated")
+    return redirect(url_for('sessions_page'))
+
+  elif action is not None:
+    flash("Unkown form action %r" % action)
+    return redirect(url_for('sessions_page'))
+
+  g.class_sessions = {}
+  for car_class in g.rules.car_class_list:
+    g.class_sessions[car_class] = parse_int(db.reg_get("%s_session" % car_class), -1)
+
+  g.race_session = parse_int(db.reg_get('race_session'), 1)
+
   return render_template('admin_sessions.html')
 
+#######################################
+
+@app.route('/settings', methods=['GET','POST'])
+def settings_page():
+  db = get_db()
+  g.rules = get_rules(db)
+  db.reg_inc('.pc_admin_settings')
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+  g.active_event = db.event_get(g.active_event_id)
+
+  if request.form.get('action') == 'update':
+    port = request.form.get('serial_port_rfid')
+    if port in ('', 'None'):
+      port = None
+    db.reg_set('serial_port_rfid', port)
+    port = request.form.get('serial_port_tag_heuer')
+    if port in ('', 'None'):
+      port = None
+    db.reg_set('serial_port_tag_heuer', port)
+    port = request.form.get('serial_port_barcode')
+    if port in ('', 'None'):
+      port = None
+    db.reg_set('serial_port_barcode', port)
+    flash("Settings updated")
+    return redirect(url_for('settings_page'))
+
+  g.serial_port_rfid = db.reg_get('serial_port_rfid', app.config['SERIAL_PORT_RFID_READER'])
+  g.serial_port_tag_heuer = db.reg_get('serial_port_tag_heuer', app.config['SERIAL_PORT_TAG_HEUER_520'])
+  g.serial_port_barcode = db.reg_get('serial_port_barcode', app.config['SERIAL_PORT_BARCODE_SCANNER'])
+
+  g.serial_list = glob("/dev/ttyUSB*") + glob("/dev/ttyACM*") + glob("/dev/serial/by-id/*")
+
+  return render_template('admin_settings.html')
 
 #######################################
 
@@ -729,7 +811,7 @@ def scores_page():
 
   g.active_event_id = db.reg_get_int('active_event_id')
   if not db.event_exists(g.active_event_id):
-    flash("No active event!")
+    flash("No active event!", 'error')
     return redirect(url_for('events_page'))
   g.active_event = db.event_get(g.active_event_id)
   
@@ -744,6 +826,13 @@ def scores_page():
     g.rules.event_recalc(db, g.active_event_id)
     flash("Event scores recalculated")
     return redirect(url_for('scores_page'))
+
+  elif action == 'prune_dns':
+    flash("TODO: prune dns runs",'warning')
+    return redirect(url_for('scores_page'))
+
+  elif action == 'export_results':
+    return redirect(url_for('export_results_page'))
   
   elif action is not None:
     flash("Unkown form action %r" % action)
@@ -768,6 +857,24 @@ def scores_page():
 
   return render_template('admin_scores.html')
 
+#######################################
+
+@app.route('/season', methods=['GET','POST'])
+def season_page():
+  db = get_db()
+  g.rules = get_rules(db)
+  db.reg_inc('.pc_admin_season')
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+  if not db.event_exists(g.active_event_id):
+    flash("No active event!", 'error')
+    return redirect(url_for('events_page'))
+  g.active_event = db.event_get(g.active_event_id)
+  
+  action = request.form.get('action')
+  # ...
+
+  return render_template('admin_season.html')
 
 #######################################
 
@@ -779,7 +886,7 @@ def export_results_page():
 
   g.active_event_id = db.reg_get_int('active_event_id')
   if not db.event_exists(g.active_event_id):
-    flash("No active event!")
+    flash("No active event!", 'error')
     return redirect(url_for('events_page'))
   g.active_event = db.event_get(g.active_event_id)
   

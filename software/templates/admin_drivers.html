@@ -16,6 +16,14 @@
   tr:target {
     background: #ffb;
   }
+  
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
 </style>
 </head>
 <body>
@@ -40,7 +48,7 @@
       <p><label>Phone:</label> <input type="text" size=40 name="phone" /></p>
       <p><label>Email:</label> <input type="text" size=40 name="email" /></p>
       
-      <p><label>Card #:</label>*<input type="number" min="0" max="9999999999" size=40 name="card_number" required /></p>
+      <p><label>Card #:</label> <input type="number" min="0" max="9999999999" size=40 name="card_number" /></p>
 
       <p><label>Note:</label> <input type="text" size=40 name="driver_note" /></p>
       <br/>
@@ -65,7 +73,7 @@
       <td><button onclick='$("#edit_{{driver.driver_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{driver.driver_id}}").offset().top});'>Edit</button></td>
       <td class="nowrap">{{driver.first_name if driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}}</td>
       <td class="nowrap">{{driver.last_name if driver.last_name}}</td>
-      <td class="nowrap">{{driver.card_number if driver.card_number}}</td>
+      <td class="nowrap {{'green' if driver.card_number else 'red'}}">{{driver.card_number if driver.card_number}}</td>
       <td style="text-align: left">{{driver.driver_note if driver.driver_note}}</td>
     </tr>
     <tr id="edit_{{driver.driver_id}}" style="display: none">
@@ -85,7 +93,7 @@
           <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" value="{{driver.addr_zip if driver.addr_zip}}" /></p>
           <p><label>Phone:</label> <input type="text" size=40 name="phone" value="{{driver.phone if driver.phone}}" /></p>
           <p><label>Email:</label> <input type="text" size=40 name="email" value="{{driver.email if driver.email}}" /></p>
-          <p><label>Card #:</label>*<input type="number" min="0" max="9999999999" size=40 name="card_number" value="{{driver.card_number if driver.card_number}}" required /></p>
+          <p><label>Card #:</label> <input type="number" min="0" max="9999999999" size=40 name="card_number" value="{{driver.card_number if driver.card_number}}" /></p>
           <p><label>Note:</label> <input type="text" size=40 name="driver_note" value="{{driver.driver_note if driver.driver_note}}" /></p>
           <hr/>
           <button type="submit" name="action" value="update">Save Changes</button> -

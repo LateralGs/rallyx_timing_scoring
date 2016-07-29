@@ -10,27 +10,34 @@
     width: 20em;
     display: inline-block;
   }
+  button.session {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  button.red {
+    border: 1px solid #fbb;
+    background: #fbb;
+  }
+  button.green {
+    border: 1px solid black;
+    background: #bfb;
+    font-weight: bold;
+  }
 </style>
+<script>
+$(document).ready(function(){
+});
+</script>
 </head>
 <body>
-  <h1>Scoring Admin - Registry</h2>
+  <h1>Scoring Admin - Season Points</h2>
   {% include 'admin_nav.html' %}
   {% include 'flash_message.html' %}
 
   <div class="layout_box">
-    <h2>Do NOT edit these unless you know what your doing!</h2>
-    {% for row in reg_list %}
-    <p>
-      <form method="POST">
-        <label>{{row.key}}</label>
-        <input type="text" name="{{row.key}}" value="{{row.value if not row.value is none}}" size="48"/>
-        <input type="submit" name="action" value="update">
-      </form>
-    </p>
-    {% else %}
-    <p>None</p>
-    {% endfor %}
-    </table>
+    <h2>TODO</h2>
   </div>
 </body>
 </html>

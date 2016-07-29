@@ -30,6 +30,7 @@ class SerialHandler(object):
       else:
         return False
     else:
+      self.port = port
       return True
 
   def is_open(self):
@@ -39,6 +40,7 @@ class SerialHandler(object):
     if self.is_open():
       self.serial.close()
     self.serial = None
+    self.port = None
 
   def __enter__(self):
     return self

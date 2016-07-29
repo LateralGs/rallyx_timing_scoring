@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 20em;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Settings</h2>
+  {% include 'admin_nav.html' %}
+  {% include 'flash_message.html' %}
+
+  <div class="layout_box">
+    <h2>Do NOT edit these unless you know what your doing!</h2>
+    <form method="POST">
+      <fieldset>
+        <legend>Serial Ports</legend>
+      <p>
+        <label>RFID Reader:</label>
+        <select name="serial_port_rfid">
+          {% if g.serial_port_rfid is not none %}
+          <option>None</option>
+          {% endif %}
+          <option selected>{{g.serial_port_rfid}}</option>
+          <option disabled>Ports:</option>
+          {% for port in g.serial_list %}
+          <option>{{port}}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label>Tag Heuer 520 / Polaris:</label>
+        <select name="serial_port_tag_heuer">
+          {% if g.serial_port_tag_heuer is not none %}
+          <option>None</option>
+          {% endif %}
+          <option selected>{{g.serial_port_tag_heuer}}</option>
+          <option disabled>Ports:</option>
+          {% for port in g.serial_list %}
+          <option>{{port}}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label>Barcode Scanner:</label>
+        <select name="serial_port_barcode">
+          {% if g.serial_port_barcode is not none %}
+          <option>None</option>
+          {% endif %}
+          <option selected>{{g.serial_port_barcode}}</option>
+          <option disabled>Ports:</option>
+          {% for port in g.serial_list %}
+          <option>{{port}}</option>
+          {% endfor %}
+        </select>
+      </p>
+      </fieldset>
+      <button type="submit" name="action" value="update">Save Settings</button>
+    </form>
+    </table>
+  </div>
+</body>
+</html>
+

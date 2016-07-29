@@ -85,7 +85,11 @@
       <td>
         <form action="{{url_for('events_page')}}"  method='POST'>
           <input type="hidden" name="event_id" value="{{event.event_id}}" />
+          {% if event.event_id != g.active_event_id %}
           <button type="submit" name="action" value="activate">Activate</button>
+          {% else %}
+          <button type="submit" name="action" value="deactivate"><b>Deactivate</b></button>
+          {% endif %}
         </form>
       </td>
       <td class="nowrap">{{event.name}}</td>
@@ -135,9 +139,11 @@
           </select></p>
           <p><label>Note:</label> <input type="text" size=40 name="event_note" value="{{event.event_note if event.event_note}}" /></p>
           <hr/>
-          <button type="submit" name="action" value="update">Save Changes</button> - 
+          <button type="submit" name="action" value="update">Save Changes</button>
+          <!--
           <button type="submit" name="action" value="recalc">Recalculate Scores</button> - 
           <button type="submit" name="action" value="finalize">Finalize Runs</button> - 
+          -->
           [{{event.event_id}}] 
           <!--
           <span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete" value="do_it"/> - <button type="submit" name="action" value="delete">Delete Event</button></span>-->

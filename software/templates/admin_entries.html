@@ -91,6 +91,7 @@
       <th class="nowrap">Card #</th>
       <th class="nowrap">Checked In</th>
       <th class="nowrap">Work Assignment</th>
+      <th class="nowrap">Race Session</th>
       <th class="nowrap">Note</th>
     </tr>
     <tr class="break"></tr>
@@ -106,15 +107,16 @@
       </td>
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
-      <td class="nowrap">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</td>
-      <td>{{entry.card_number}}</td>
+      <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
+      <td class="{{'green' if entry.card_number else 'red'}}">{{entry.card_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
       <td>{{entry.work_assign}}</td>
+      <td>{{'Any' if entry.race_session == '-1' or entry.race_session is none else entry.race_session}}</td>
       <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
     <tr>
     </tr>
     <tr id="edit_{{entry.entry_id}}" style="display: none">
-      <td colspan=10 style="text-align: left; background: #ffd">
+      <td colspan=11 style="text-align: left; background: #ffd">
         <form action="{{url_for('entries_page')}}" method='POST'>
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}" />
           <p><label>Driver:</label>*<select name="driver_id" required>
@@ -165,7 +167,7 @@
     </tr>
     <tr class="break"></tr>
     {% else %}
-    <tr><td colspan=11>None</td></tr>
+    <tr><td colspan=12>None</td></tr>
     {% endfor %}
   </table>
 </body>
