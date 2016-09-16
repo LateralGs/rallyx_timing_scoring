@@ -41,6 +41,7 @@ app.jinja_env.filters['pad']=pad
 def get_db():
   db = getattr(g, '_database', None)
   if db is None:
+    app.logger.debug(app.config['SCORING_DB_PATH'])
     db = g._database = ScoringDatabase(app.config['SCORING_DB_PATH'])
   return db
 

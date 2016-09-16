@@ -171,14 +171,14 @@ class ORG_Rules(BasicRules):
 
   def entry_recalc(self, db, entry_id):
     # calculate event_time_ms, event_time and drop runs
-    entry_runs = self.run_list(entry_id=entry_id, state_filter=('scored',))
+    entry_runs = db.run_list(entry_id=entry_id, state_filter=('scored',))
     self.log.debug(entry_runs)
 
     dropped_runs = []
     scored_runs = []
 
     # make sure we only drop if we are more than min runs
-    max_drop = min(self.max_drop_runs, self.max_runs-self.min_runs)
+    max_drop = min(self.drop_runs, self.max_runs-self.min_runs)
 
     # drop runs that are beyond max_runs
     for i in range(len(entry_runs)):
@@ -194,10 +194,13 @@ class ORG_Rules(BasicRules):
 
     # sort runs then find out which runs we drop
     scored_runs.sort(cmp=time_cmp, key=lambda r: r['total_time_ms'])
-    dropped_runs += scored_runs[self.max_runs-self.max_drop:]
+    dropped_runs += scored_runs[self.max_runs-max_drop:]
     del scored_runs[self.max_runs-max_drop:]
 
-    event_time_ms = 0
+    penalty_time_ms = db.query_singleton("SELECT SUM(time_ms) FROM penalties WHERE entry_id=?", entry_id)
+    penalty_time = format_time(penalty_time_ms, None)
+
+    event_time_ms = penalty_time_ms if penalty_time_ms is not None else 0
     event_time = None
     for run in scored_runs:
       if run['start_time_ms'] == 0 or run['finish_time_ms'] == 0:
@@ -207,15 +210,16 @@ class ORG_Rules(BasicRules):
       elif run['total_time_ms']:
         event_time_ms += run['total_time_ms']
     event_time = format_time(event_time_ms)
+    
 
-    self.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, scored_runs=scored_run_count)
+    db.entry_update(entry_id=entry_id, event_time_ms=event_time_ms, event_time=event_time, scored_runs=scored_run_count, event_penalties=penalty_time)
     
     # update dropped runs
     for run in entry_runs:
       if run in dropped_runs:
-        self.run_update(run_id=run['run_id'], drop_run=1)
+       	db.run_update(run_id=run['run_id'], drop_run=1)
       else:
-        self.run_update(run_id=run['run_id'], drop_run=0)
+        db.run_update(run_id=run['run_id'], drop_run=0)
     
     # update run counts
     entry_runs = db.run_list(entry_id=entry_id)
