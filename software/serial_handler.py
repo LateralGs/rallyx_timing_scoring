@@ -12,16 +12,17 @@ def serial_wrapper(func):
 class SerialHandler(object):
   def __init__(self, port=None, baudrate=9600):
     self.serial = None
+    self.port = None
     self.baudrate = baudrate
     self.open(port)
 
   def open(self, port, baudrate=None, raise_ex=False):
     """ Opens or reopens a serial device """
-    if port is None:
-      return
+    self.close()
     if baudrate is not None:
       self.baudrate = baudrate
-    self.close()
+    if port is None:
+      return
     try:
       self.serial = Serial(port=port, baudrate=self.baudrate, timeout=0.1)
     except SerialException:

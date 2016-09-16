@@ -89,7 +89,7 @@
         {% for num in range(g.active_event.max_runs) %}
         <th colspan=4>Run {{num+1}}</th>
         {% endfor %}
-        <th colspan=3>Event</th>
+        <th colspan=4>Event</th>
       </tr>
       <tr>
         <th>Class</td>
@@ -104,6 +104,7 @@
         <th>Penalties</th>
         <th>Time</th>
         <th>In Class</th>
+        <th>Status</th>
       </tr>
       <tr class="break"></tr>
       {% for car_class in g.rules.car_class_list %}
@@ -115,21 +116,22 @@
           <td><a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">{{entry.car_number}}</a></td>
           <td class="driver_name run_border"><a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
           {% for run in g.entry_run_list[entry.entry_id] %}
-          <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.raw_time}}</a></td>
-          <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.cones if run.cones > 0 else '-'}}</a></td>
-          <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.gates if run.gates > 0 else '-'}}</a></td>
+            <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.raw_time}}</a></td>
+            <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.cones if run.cones > 0 else '-'}}</a></td>
+            <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.gates if run.gates > 0 else '-'}}</a></td>
             {% if run.drop_run %}
             <td class="run_border drop"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">({{run.total_time}})</a></td>
             {% else %}
             <td class="run_border"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.total_time}}</a></td>
             {% endif%}
           {% endfor %}
-          {% for i in range(g.active_event.max_runs-entry.scored_runs) %}
+          {% for i in range(g.active_event.max_runs-entry.event_runs) %}
           <td class="run_border" colspan=4>&nbsp;</td>
           {% endfor %}
           <td>{{entry.event_penalties if entry.event_penalties}}</td>
           <td>{{entry.event_time if entry.event_time}}</td>
           <td>{{loop.index if entry.event_time}}</td>
+          <td><b>{{'RECALC' if entry.recalc}}</b></td>
         </tr>
         {% endfor %}
         {% else %}

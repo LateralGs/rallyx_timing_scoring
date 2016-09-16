@@ -42,6 +42,9 @@
   .tossout {
     background: #ffd;
   }
+  .filter_red {
+    background: #fdd;
+  }
   select {
     font-family: Monospace;
   }
@@ -209,7 +212,7 @@ $(document).ready(function(){
       <form action="{{url_for('timing_page')}}"  method="POST">
         <select name="next">
           <option disabled selected>-- Select Entry --</option>
-          {% for entry in g.entry_driver_list %}
+          {% for entry in g.driver_entry_list %}
           {% if entry.race_session is none or entry.race_session == '-1' or entry.race_session == g.race_session %}
           <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
           <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
@@ -249,14 +252,14 @@ $(document).ready(function(){
     </div>
     </td></tr></table>
 
-    <div class="layout_box">
+    <div class="layout_box {{'filter_red' if session.entry_filter not in ('all',None)}}">
       <form action="{{url_for('timing_page')}}"  method="POST">
       Filter:
-      <select name="entry_filter" class="{{'red_text' if session.entry_filter not in ('all',None)}}">
+      <select name="entry_filter">
         <option value="all" {{'selected' if session.entry_filter=='all'}}>All</option>
         <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
         <optgroup label="Entries">
-        {% for entry in g.entry_driver_list %}
+        {% for entry in g.driver_entry_list %}
         <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}} >{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
         <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
         {% else %}
@@ -344,7 +347,7 @@ $(document).ready(function(){
                   <option disabled></option>
                   <option>-- None --</option>
                   <option disabled></option>
-                  {% for entry in g.entry_driver_list %}
+                  {% for entry in g.driver_entry_list %}
                   <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
                   <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
                   {% endfor %}

@@ -17,9 +17,10 @@ from cStringIO import StringIO
 from serial.tools.list_ports import comports
 from glob import glob
 
-
 #######################################
-
+# flash categories
+F_ERROR = 'error'
+F_WARN = 'warning'
 
 # main wsgi app
 app = Flask(__name__)
@@ -40,6 +41,16 @@ except:
 app.jinja_env.filters['format_time']=format_time
 app.jinja_env.filters['pad']=pad
 
+try:
+  import markdown
+except ImportError:
+  app.logger.warning("Unable to import markdown module")
+else:
+  app.jinja_env.filters['markdown']=markdown.markdown
+
+# remove extra whitespace from jinja output
+app.jinja_env.trim_blocks=True
+app.jinja_env.lstrip_blocks=True
 
 #######################################
 
@@ -67,18 +78,11 @@ def get_rules(db):
   return rules
 
 
-@request_started.connect_via(app)
-def request_started_signal(sender, **extra):
-  pass
-
-
 #######################################
 
 
 @app.route('/')
 def index_page():
-  db = get_db()
-  db.reg_inc('.pc_admin_index')
   # nothing to do, static page for instructions
   return render_template('admin_index.html')
 
@@ -90,7 +94,6 @@ def index_page():
 def events_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_events')
 
   action = request.form.get('action')
 
@@ -100,7 +103,7 @@ def events_page():
       db.reg_set('active_event_id', event_id)
       flash("Set active event to %r" % event_id)
     else:
-      flash("Invalid event_id")
+      flash("Invalid event_id", F_ERROR)
     return redirect(url_for('events_page'));
 
   elif action == 'deactivate':
@@ -111,47 +114,48 @@ def events_page():
   elif action == 'update':
     event_id = request.form.get('event_id')
     if not db.event_exists(event_id):
-      flash("Invalid event id")
+      flash("Invalid event id", F_ERROR)
       return redirect(url_for('events_page'))
     event_data = {}
-    for key in db.columns['events']:
+    for key in db.table_columns('events'):
       if key in ['event_id']:
         continue # ignore
       elif key in request.form:
         event_data[key] = request.form.get(key)
-    db.event_update(event_id, **event_data)
+    db.update('events', event_id, **event_data)
     flash("Event changes saved")
     return redirect(url_for('events_page'))
 
   elif action == 'insert':
     event_data = {}
-    for key in db.columns['events']:
+    for key in db.table_columns('events'):
       if key in ['event_id']:
         continue # ignore
       elif key in request.form:
         event_data[key] = request.form.get(key)
-    event_id = db.event_insert(**event_data)
+    event_id = db.insert('events', **event_data)
     flash("Added new event [%r]" % event_id)
     return redirect(url_for('events_page'))
 
   elif action == 'delete':
-    if request.form.get('confirm_delete') == 'do_it':
+    if request.form.get('confirm_delete'):
       event_id = request.form.get('event_id')
       if db.event_exists(event_id):
         if db.reg_get('active_event_id') == event_id:
           db.reg_set('active_event_id',None)
-        db.event_delete(event_id)
+        db.update("events", event_id, deleted=1)
+        # FIXME do we need to propagate this to runs and entries?
         flash("Event deleted")
       else:
-        flash("Invalid event_id for delete operation.")
+        flash("Invalid event_id for delete operation.", F_ERROR)
     else:
-      flash("Delete ignored, no confirmation")
+      flash("Delete ignored, no confirmation", F_WARN)
     return redirect(url_for('events_page'))
 
   elif action == 'finalize':
     event_id = request.form.get('event_id')
     if not db.event_exists(event_id):
-      flash("Invalid event id")
+      flash("Invalid event id", F_ERROR)
       return redirect(url_for('events_page'))
     g.rules.event_finalize(db, event_id)
     flash("Event scores finalized")
@@ -160,20 +164,20 @@ def events_page():
   elif action == 'recalc':
     event_id = request.form.get('event_id')
     if not db.event_exists(event_id):
-      flash("Invalid event id")
+      flash("Invalid event id", F_ERROR)
       return redirect(url_for('events_page'))
-    # FIXME handle this async from the page request?
-    g.rules.event_recalc(db, event_id)
-    flash("Event scores recalculated")
+    # flag all entries for this event to be recalculated
+    db.set_event_recalc(event_id)
+    flash("Event scores recalculating")
     return redirect(url_for('events_page'))
 
   elif action is not None:
-    flash("Invalid form action %r" % action)
+    flash("Invalid form action %r" % action, F_ERROR)
     return redirect(url_for('events_page'))
 
   g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.event_get(g.active_event_id)
-  g.event_list = db.event_list()
+  g.active_event = db.select_one('events', event_id=g.active_event_id, deleted=0)
+  g.event_list = db.select_all('events', deleted=0, _order_by='event_id')
   g.default_date = datetime.date.today().isoformat()
   
   return render_template('admin_events.html')
@@ -186,13 +190,13 @@ def events_page():
 def timing_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_timing')
 
-  active_event_id = db.reg_get_int('active_event_id')
-  logging.debug("active_event_id = %r", active_event_id)
-  if not db.event_exists(active_event_id):
-    flash("No active event!", 'error')
+  g.active_event_id = db.reg_get_int('active_event_id')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
+
 
   if 'entry_filter' in request.args:
     session['entry_filter'] = request.args.get('entry_filter')
@@ -200,7 +204,7 @@ def timing_page():
       try:
         session['entry_filter'] = int(session['entry_filter'])
       except ValueError:
-        flash("Invalid entry filter")
+        flash("Invalid entry filter", F_ERROR)
         session['entry_filter'] = None
 
   if 'started_filter' in request.args:
@@ -255,7 +259,7 @@ def timing_page():
       try:
         session['entry_filter'] = int(session['entry_filter'])
       except ValueError:
-        flash("Invalid driver filter")
+        flash("Invalid driver filter", F_ERROR)
         session['entry_filter'] = None
 
     return redirect(url_for('timing_page'))
@@ -273,20 +277,22 @@ def timing_page():
     try:
       max_runs = int(request.form.get('max_runs',''))
     except ValueError:
-      flash("Invalid max runs", 'error')
+      flash("Invalid max runs", F_ERROR)
     else:
-      db.event_update(active_event_id, max_runs=max_runs)
-      g.rules.event_recalc(db, active_event_id)
-      flash("Event scores recalculated")
+      db.update('events', g.active_event_id, max_runs=max_runs)
+      # make sure we recalculate all entries event totals based on new max runs
+      # this is mainly needed with drop runs > 0
+      db.set_event_recalc(g.active_event_id)
+      flash("Event scores recalculating")
     return redirect(url_for('timing_page'))
 
   elif action == 'update':
     run_id = request.form.get('run_id')
     if not db.run_exists(run_id):
-      flash("Invalid run id", 'error')
+      flash("Invalid run id", F_ERROR)
       return redirect(url_for('timing_page'))
     run_data = {}
-    for key in db.columns['runs'] + ['start_time','finish_time']:
+    for key in db.table_columns('runs') + ['start_time','finish_time']:
       if key in ['run_id']:
         continue # ignore
       elif key == 'start_time':
@@ -294,14 +300,14 @@ def timing_page():
           run_data['start_time_ms'] = parse_time_ex(request.form.get(key))
         except:
           app.logger.debug(request.form.get(key))
-          flash("Invalid start time, start time not changed.", 'error')
+          flash("Invalid start time, start time not changed.", F_ERROR)
       elif key == 'finish_time':
         if request.form.get('old_state') != 'started':
           try:
             run_data['finish_time_ms'] = parse_time_ex(request.form.get(key))
           except:
             app.logger.debug(request.form.get(key))
-            flash("Invalid finish time, finish time not changed.", 'error')
+            flash("Invalid finish time, finish time not changed.", F_ERROR)
       elif key == 'state' and request.form.get('state') == request.form.get('old_state'):
         pass # ignore setting state so we dont clobber a finish
       elif key == 'entry_id' and request.form.get(key) == 'None':
@@ -315,72 +321,43 @@ def timing_page():
       run_data['finish_time_ms'] = None
 
     if run_data.get('state', request.form.get('old_state')) == 'scored' and run_data.get('finish_time_ms') is None and run_data.get('start_time_ms') != 0:
-      flash("Invalid raw time, unable to set state to 'scored'", 'error')
-      flash("Setting state to 'finished'", 'warning')
+      flash("Invalid raw time, unable to set state to 'scored'", F_ERROR)
+      flash("Setting state to 'finished'", F_WARN)
       run_data['state'] = 'finished'
 
-    logging.debug(run_data)
-    db.run_update(run_id, **run_data)
+    db.update('runs', run_id, **run_data)
     flash("Run changes saved")
 
     old_entry_id = request.form.get('old_entry_id')
     if old_entry_id != request.form.get('entry_id') and old_entry_id != 'None':
-      g.rules.entry_recalc(db, old_entry_id)
+      db.set_entry_recalc(old_entry_id)
       flash("Old entry recalc")
 
+    # FIXME should this be deferred?
     g.rules.run_recalc(db, run_id)
     flash("Run recalc")
+
     if 'entry_id' in run_data and run_data['entry_id'] is not None:
-      g.rules.entry_recalc(db, run_data['entry_id'])
+      db.set_entry_recalc(run_data['entry_id'])
       flash("Entry recalc")
 
     return redirect(url_for('timing_page'))
 
   elif action == 'insert':
     run_data = {}
-    for key in db.columns['runs']:
+    for key in db.table_columns('runs'):
       if key in ['run_id']:
         continue # ignore
       elif key in request.form:
         run_data[key] = clean_str(request.form.get(key))
-    run_id = db.run_insert(**run_data)
+    run_id = db.insert('runs', **run_data)
+    # FIXME should this be deferred?
     g.rules.run_recalc(db, run_id)
     flash("Added new run [%r]" % run_id)
     return redirect(url_for('timing_page'))
 
-  elif action == 'dnf':
-    run_id = request.form.get('run_id')
-    entry_id = request.form.get('entry_id')
-    if not db.run_exists(run_id):
-      flash("Invalid run id", 'error')
-      return redirect(url_for('timing_page'))
-    db.run_update(run_id, start_time_ms=None, finish_time_ms=0, state="scored")
-    flash("Run changes saved")
-    g.rules.run_recalc(db, run_id)
-    flash("Run recalc")
-    if entry_id is not None:
-      g.rules.entry_recalc(db, entry_id)
-      flash("Entry recalc")
-    return redirect(url_for('timing_page'))
-
-
-  elif action == 'dns':
-    run_id = request.form.get('run_id')
-    entry_id = request.form.get('entry_id')
-    if not db.run_exists(run_id):
-      flash("Invalid run id", 'error')
-      return redirect(url_for('timing_page'))
-    db.run_update(run_id, start_time_ms=0, finish_time_ms=None, state="scored")
-    flash("Run changes saved")
-    g.rules.run_recalc(db, run_id)
-    flash("Run recalc")
-    if entry_id is not None:
-      g.rules.entry_recalc(db, entry_id)
-      flash("Entry recalc")
-    return redirect(url_for('timing_page'))
-
   elif action is not None:
-    flash("Invalid form action %r" % action)
+    flash("Invalid form action %r" % action, F_ERROR)
     return redirect(url_for('timing_page'))
 
   if 'entry_filter' not in session:
@@ -408,31 +385,44 @@ def timing_page():
   if session['tossout_filter']:
     state_filter += ['tossout']
 
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.event_get(g.active_event_id)
   g.disp_time_events = db.reg_get_int('disp_time_events', 20)
-  g.time_list = db.time_list(g.active_event_id, session['hide_invalid_times'], g.disp_time_events)
-  g.run_list = db.run_list(event_id=g.active_event_id, entry_id=session['entry_filter'], state_filter=state_filter, rev_sort=True, limit=session['run_limit'])
-  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
-  g.cars_started = db.run_count(g.active_event_id, state_filter=('started',))
-  g.cars_finished = db.run_count(g.active_event_id, state_filter=('finished',))
+  
+  # FIXME change or remove this?
+  g.time_list = db.query_all("SELECT * FROM times WHERE event_id=? ORDER BY time_id DESC LIMIT ?", (g.active_event_id, g.disp_time_events))
+  #db.time_list(g.active_event_id, session['hide_invalid_times'], g.disp_time_events)
+
+  g.run_list = db.run_list(event_id=g.active_event_id, entry_id=session['entry_filter'], state=state_filter, sort='d', limit=session['run_limit'])
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  
+  g.cars_started = db.run_count(event_id=g.active_event_id, state='started')
+  g.cars_finished = db.run_count(event_id=g.active_event_id, state='finished')
+  
   g.disable_start = db.reg_get_int('disable_start', 0)
   g.disable_finish = db.reg_get_int('disable_finish', 0)
+  
   g.next_entry_id = db.reg_get_int('next_entry_id')
-  g.next_entry_driver = db.entry_driver_get(g.next_entry_id)
-  g.next_entry_run_count = db.run_count(g.active_event_id, g.next_entry_id, state_filter=('started','finished','scored'))
+  g.next_entry_driver = db.select_one('driver_entries', entry_id=g.next_entry_id)
+  if g.next_entry_id is None:
+    g.next_entry_run_count = 0
+  else:
+    g.next_entry_run_count = db.run_count(entry_id=g.next_entry_id, state=('started','finished','scored'))
+  
   g.barcode_scanner_status = db.reg_get('barcode_scanner_status')
   g.tag_heuer_status = db.reg_get('tag_heuer_status')
   g.usb_rfid_status = db.reg_get('usb_rfid_status')
   g.wireless_rfid_status = db.reg_get('wireless_rfid_status')
+
+  # FIXME change how watchdog is handled
   g.hardware_ok = bool(time() - db.reg_get_float('hardware_watchdog', 0) < 3)
   g.start_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_start
   g.finish_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_finish
+
   g.race_session = db.reg_get('race_session')
   g.next_entry_msg = db.reg_get('next_entry_msg')
 
+  # create car description strings for entries
   g.car_dict = {}
-  for entry in g.entry_driver_list:
+  for entry in g.driver_entry_list:
     g.car_dict[entry['entry_id']] = "%s %s %s %s" % (entry['car_color'], entry['car_year'], entry['car_make'], entry['car_model'])
 
   return render_template('admin_timing.html')
@@ -445,12 +435,13 @@ def timing_page():
 def entries_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_entries')
 
-  active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(active_event_id):
-    flash("No active event!", 'error')
+  g.active_event_id = db.reg_get_int('active_event_id')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
+
 
   action = request.form.get('action')
 
@@ -458,87 +449,75 @@ def entries_page():
     if request.form.get('confirm_delete') == 'do_it':
       entry_id = request.form.get('entry_id')
       if db.entry_exists(entry_id):
-        db.entry_delete(entry_id)
+        db.update('entries', entry_id, deleted=1)
+        # FIXME add propagation of deletes to runs?
         flash("Entry deleted")
       else:
-        flash("Invalid entry_id for delete operation.")
+        flash("Invalid entry_id for delete operation.", F_ERROR)
     else:
-      flash("Delete ignored, no confirmation")
-    return redirect(url_for('entries_page'))
-
-  elif action == 'print':
-    entry_id = request.form.get('entry_id')
-    if entry_id is not None:
-      entry = db.entry_driver_get(entry_id)
-
-      if entry['alt_name']:
-        entry_name = entry['first_name'] + ' (' + entry['alt_name'] + ') ' + entry['last_name']
-      else:
-        entry_name = entry['first_name'] + ' ' + entry['last_name']
-        
-      label_text = " %2s %-3s" % (entry['car_class'], entry['car_number'])
-      label_text += "\r\n"
-      label_text += " " + entry_name
-
-      print_label(app.config['PRINTER_NAME'], label_text, lpi=3)
-      flash("Label Printed")
-      flash('<a href="#%s">Goto Entry</a>' % entry_id, 'safe')
-    else:
-      flash("No label printed, entry_id is None!", "warning")
+      flash("Delete ignored, no confirmation", F_WARN)
     return redirect(url_for('entries_page'))
 
   elif action == 'insert':
     entry_data = {}
-    for key in db.columns['entries']:
+    for key in db.table_columns('entries'):
       if key in ['entry_id']:
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
     if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
-      flash("Invalid driver for new entry, no entry created.", 'error')
+      flash("Invalid driver for new entry, no entry created.", F_ERROR)
     elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
-      flash("Invalid car class for new entry, no entry created.", 'error')
+      flash("Invalid car class for new entry, no entry created.", F_ERROR)
     else:
       entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
-      if db.entry_by_driver(active_event_id, entry_data['driver_id']):
-        flash("Entry already exists for driver! Creating new entry anyways.", 'warning')
-      entry_id = db.entry_insert(**entry_data)
+      if db.count('entries', event_id=g.active_event_id, driver_id=entry_data['driver_id']):
+        flash("Entry already exists for driver! Creating new entry anyways.", F_WARN)
+      entry_id = db.insert('entries',**entry_data)
       flash("Added new entry [%r]" % entry_id)
     return redirect(url_for('entries_page'))
-
+  
   elif action == 'update':
     entry_id = request.form.get('entry_id')
     if not db.entry_exists(entry_id):
-      flash("Invalid entry id")
+      flash("Invalid entry id", F_ERROR)
       return redirect(url_for('entries_page'))
     entry_data = {}
-    for key in db.columns['entries']:
+    for key in db.table_columns('entries'):
       if key in ['entry_id']:
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
     entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
-    db.entry_update(entry_id, **entry_data)
+    db.update('entries', entry_id, **entry_data)
     flash("Entry changes saved")
     return redirect(url_for('entries_page'))
 
   elif action == 'check_in':
     entry_id = request.form.get('entry_id')
     if not db.entry_exists(entry_id):
-      flash("Invalid entry id")
+      flash("Invalid entry id", F_ERROR)
       return redirect(url_for('entries_page'))
-    db.entry_update(entry_id, checked_in=1)
+    db.update('entries', entry_id, checked_in=1)
+    flash("Entry checked in")
+    return redirect(url_for('entries_page'))
+
+  elif action == 'card_check_in':
+    card_number = request.form.get('card_number')
+    entry = db.select_one('driver_entries', card_number=card_number)
+    if not entry:
+      flash("Entry not found for card number %s" % card_number, F_ERROR)
+      return redirect(url_for('entries_page'))
+    db.update('entries', entry['entry_id'], checked_in=1)
     flash("Entry checked in")
     return redirect(url_for('entries_page'))
 
   elif action is not None:
-    flash("Invalid form action %r" % action)
+    flash("Invalid form action %r" % action, F_ERROR)
     return redirect(url_for('entries_page'))
 
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.event_get(g.active_event_id)
-  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
-  g.driver_list = db.driver_list()
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
   return render_template('admin_entries.html')
 
 
@@ -549,61 +528,58 @@ def entries_page():
 def drivers_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_drivers')
-
-  active_event_id = db.reg_get_int('active_event_id')
 
   action = request.form.get('action')
 
   if action == 'delete':
-    if request.form.get('confirm_delete') == 'do_it':
+    if request.form.get('confirm_delete'):
       driver_id = request.form.get('driver_id')
       if db.driver_exists(driver_id):
-        db.driver_delete(driver_id)
+        db.update('drivers', driver_id, deleted=1)
+        db.execute("UPDATE entries SET deleted=1 WHERE driver_id=?", (driver_id,))
+        # FIXME do we need to propegate this further?
         flash("Driver deleted")
       else:
-        flash("Invalid driver_id for delete operation.")
+        flash("Invalid driver_id for delete operation.", F_ERROR)
     else:
-      flash("Delete ignored, no confirmation")
+      flash("Delete ignored, no confirmation", F_WARN)
     return redirect(url_for('drivers_page'))
 
   elif action == 'insert':
     driver_data = {}
-    for key in db.columns['drivers']:
+    for key in db.table_columns('drivers'):
       if key in ['driver_id']:
         continue # ignore
       elif key == 'card_number':
         driver_data[key] = parse_int(request.form.get(key))
       elif key in request.form:
         driver_data[key] = clean_str(request.form.get(key))
-    driver_id = db.driver_insert(**driver_data)
+    driver_id = db.insert('drivers',**driver_data)
     flash("Added new driver [%r]" % driver_id)
     return redirect(url_for('drivers_page'))
 
   elif action == 'update':
     driver_id = request.form.get('driver_id')
     if not db.driver_exists(driver_id):
-      flash("Invalid driver id")
+      flash("Invalid driver id", F_ERROR)
       return redirect(url_for('drivers_page'))
     driver_data = {}
-    for key in db.columns['drivers']:
+    for key in db.table_columns('drivers'):
       if key in ['driver_id']:
         continue # ignore
       elif key == 'card_number':
         driver_data[key] = parse_int(request.form.get(key))
       elif key in request.form:
         driver_data[key] = clean_str(request.form.get(key))
-    db.driver_update(driver_id, **driver_data)
+    db.update('drivers', driver_id, **driver_data)
     flash("Driver changes saved")
     return redirect(url_for('drivers_page'))
   
   elif action is not None:
-    flash("Unkown form action %r" % action)
+    flash("Unkown form action %r" % action, F_ERROR)
     return redirect(url_for('drivers_page'))
 
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.event_get(g.active_event_id)
-  g.driver_list = db.driver_list()
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
   return render_template('admin_drivers.html')
 
 
@@ -614,13 +590,12 @@ def drivers_page():
 def penalties_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_penalties')
 
   g.active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(g.active_event_id):
-    flash("No active event!", 'error')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
-  g.active_event = db.event_get(g.active_event_id)
 
   action = request.form.get('action')
 
@@ -630,23 +605,23 @@ def penalties_page():
     penalty_note = request.form.get('penalty_note')
 
     if not db.entry_exists(entry_id):
-      flash("Invalid entry id", 'error')
+      flash("Invalid entry id", F_ERROR)
       return redirect(url_for('penalties_page'))
 
     try:
       time_ms = parse_time_ex(penalty_time)
     except:
-      flash("Invalid penalty time", 'error')
+      flash("Invalid penalty time", F_ERROR)
       return redirect(url_for('penalties_page'))
     
     if time_ms is None:
       time_ms = 0
 
-    db.penalty_insert(entry_id=entry_id, time_ms=time_ms, penalty_note=penalty_note)
+    db.insert('penalties', event_id=g.active_event_id, entry_id=entry_id, time_ms=time_ms, penalty_note=penalty_note)
     flash("Penalty added")
 
-    g.rules.entry_recalc(db, entry_id)
-    flash("entry recalc")
+    db.set_entry_recalc(entry_id)
+    flash("Entry recalculating")
 
     return redirect(url_for('penalties_page'))
 
@@ -655,64 +630,62 @@ def penalties_page():
     entry_id = request.form.get('entry_id')
     penalty_time = request.form.get('penalty_time')
     penalty_note = request.form.get('penalty_note')
-    penalty = db.penalty_get(penalty_id)
+    old_penalty = db.select_one('penalties', penalty_id=penalty_id)
 
     if penalty is None:
-      flash("Invalid penalty id", 'error')
+      flash("Invalid penalty id", F_ERROR)
       return redirect(url_for('penalties_page'))
 
     if not db.entry_exists(entry_id):
-      flash("Invalid entry id", 'error')
+      flash("Invalid entry id", F_ERROR)
       return redirect(url_for('penalties_page'))
 
     try:
       time_ms = parse_time_ex(penalty_time)
     except:
-      flash("Invalid penalty time", 'error')
+      flash("Invalid penalty time", F_ERROR)
       return redirect(url_for('penalties_page'))
 
     if time_ms is None:
       time_ms = 0
 
-    db.penalty_update(penalty_id=penalty_id, entry_id=entry_id, time_ms=time_ms, penalty_note=penalty_note)
+    db.update('penalties', penalty_id, entry_id=entry_id, time_ms=time_ms, penalty_note=penalty_note)
     flash("Penalty updated")
 
-    if penalty['entry_id'] != entry_id:
+    if old_penalty['entry_id'] != entry_id:
       # update previous entry
       flash("old entry recalc")
-      g.rules.entry_recalc(db, penalty['entry_id'])
+      db.set_entry_recalc(old_penalty['entry_id'])
 
     # update current entry
-    g.rules.entry_recalc(db, entry_id)
+    db.set_entry_recalc(entry_id)
     flash("entry recalc")
 
     return redirect(url_for('penalties_page'))
 
   elif action == 'delete':
     penalty_id = request.form.get('penalty_id')
-    penalty = db.penalty_get(penalty_id)
+    old_penalty = db.select_one('penalties', penalty_id=penalty_id)
 
-    if penalty is None:
-      flash("Invalid penalty id", 'error')
+    if old_penalty is None:
+      flash("Invalid penalty id", F_ERROR)
       return redirect(url_for('penalties_page'))
 
-    db.penalty_delete(penalty_id)
+    db.update('penalties', penalty_id, deleted=1)
     flash("Penalty deleted")
 
     # update previous entry
     flash("old entry recalc")
-    g.rules.entry_recalc(db, penalty['entry_id'])
+    db.set_entry_recalc(old_penalty['entry_id'])
 
     return redirect(url_for('penalties_page'))
 
   elif action is not None:
-    flash("Unkown form action %r" % action)
+    flash("Unkown form action %r" % action, F_ERROR)
     return redirect(url_for('penalties_page'))
 
-  g.penalty_list = db.penalty_list(g.active_event_id)
-
-  g.penalty_list = db.query_all("SELECT penalty_id, penalties.entry_id, car_class, car_number, first_name, last_name, alt_name, time_ms, penalty_note  FROM penalties, entries, drivers WHERE penalties.entry_id=entries.entry_id AND entries.driver_id=drivers.driver_id AND entries.event_id=? ORDER BY penalties.penalty_id ASC", g.active_event_id)
-  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
+  g.penalty_list = db.select_all('penalties', event_id=g.active_event_id, deleted=0, _order_by="penalty_id")
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
 
   return render_template('admin_penalties.html')
 
@@ -724,13 +697,12 @@ def penalties_page():
 def sessions_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_sessions')
 
   g.active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(g.active_event_id):
-    flash("No active event!", 'error')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
-  g.active_event = db.event_get(g.active_event_id)
 
   action = request.form.get('action')
 
@@ -740,7 +712,7 @@ def sessions_page():
       if class_session not in ('1','2','3','4','-1'):
         class_session = '-1'
       db.reg_set("%s_session" % car_class, class_session)
-      db.entries_session_update(g.active_event_id, car_class, class_session)
+      db.entry_session_update(g.active_event_id, car_class, class_session)
 
     flash("Class sessions updated")
     return redirect(url_for('sessions_page'))
@@ -754,7 +726,7 @@ def sessions_page():
     return redirect(url_for('sessions_page'))
 
   elif action is not None:
-    flash("Unkown form action %r" % action)
+    flash("Unkown form action %r" % action, F_ERROR)
     return redirect(url_for('sessions_page'))
 
   g.class_sessions = {}
@@ -771,10 +743,6 @@ def sessions_page():
 def settings_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_settings')
-
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.event_get(g.active_event_id)
 
   if request.form.get('action') == 'update':
     port = request.form.get('serial_port_rfid')
@@ -792,9 +760,9 @@ def settings_page():
     flash("Settings updated")
     return redirect(url_for('settings_page'))
 
-  g.serial_port_rfid = db.reg_get('serial_port_rfid', app.config['SERIAL_PORT_RFID_READER'])
-  g.serial_port_tag_heuer = db.reg_get('serial_port_tag_heuer', app.config['SERIAL_PORT_TAG_HEUER_520'])
-  g.serial_port_barcode = db.reg_get('serial_port_barcode', app.config['SERIAL_PORT_BARCODE_SCANNER'])
+  g.serial_port_rfid = db.reg_get('serial_port_rfid')
+  g.serial_port_tag_heuer = db.reg_get('serial_port_tag_heuer')
+  g.serial_port_barcode = db.reg_get('serial_port_barcode')
 
   g.serial_list = glob("/dev/ttyUSB*") + glob("/dev/ttyACM*") + glob("/dev/serial/by-id/*")
 
@@ -807,41 +775,50 @@ def settings_page():
 def scores_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_scores')
 
   g.active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(g.active_event_id):
-    flash("No active event!", 'error')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
-  g.active_event = db.event_get(g.active_event_id)
   
   action = request.form.get('action')
 
-  if action == 'finalize':
-    g.rules.event_finalize(db, g.active_event_id)
-    flash("Event scores finalized")
+  if action == 'entry_finalize':
+    #g.rules.event_finalize(db, g.active_event_id)
+    #flash("Event scores finalized")
+    flash("TODO: entry finalize", F_WARN)
     return redirect(url_for('scores_page'))
     
-  elif action == 'recalc':
-    g.rules.event_recalc(db, g.active_event_id)
-    flash("Event scores recalculated")
+  elif action == 'event_recalc':
+    db.set_event_recalc(g.active_event_id)
+    flash("Event scores recalculating")
+    return redirect(url_for('scores_page'))
+
+  elif action == 'entry_recalc':
+    entry_id = request.form.get('entry_id')
+    if not db.entry_exists(entry_id):
+      flash("Invalid entry id", F_ERROR)
+      return redirect(url_for('entries_page'))
+    db.set_entry_recalc(entry_id)
+    flash("Entry score recalculating")
     return redirect(url_for('scores_page'))
 
   elif action == 'prune_dns':
-    flash("TODO: prune dns runs",'warning')
+    flash("TODO: prune dns runs", F_WARN)
     return redirect(url_for('scores_page'))
 
   elif action == 'export_results':
     return redirect(url_for('export_results_page'))
   
   elif action is not None:
-    flash("Unkown form action %r" % action)
+    flash("Unkown form action %r" % action, F_ERROR)
     return redirect(url_for('scores_page'))
 
   # sort entries into car class
   g.class_entry_list = {}
-  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
-  for entry in g.entry_driver_list:
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  for entry in g.driver_entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
     if entry['scores_visible']:
@@ -852,8 +829,9 @@ def scores_page():
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
-  for entry in g.entry_driver_list:
-    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs)
+  for entry in g.driver_entry_list:
+    # FIXME TODO add other run states so we can show pending runs in scores
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored',), limit=g.rules.max_runs)
 
   return render_template('admin_scores.html')
 
@@ -863,15 +841,16 @@ def scores_page():
 def season_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_season')
 
   g.active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(g.active_event_id):
-    flash("No active event!", 'error')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
-  g.active_event = db.event_get(g.active_event_id)
   
   action = request.form.get('action')
+  
+  # FIXME TODO
   # ...
 
   return render_template('admin_season.html')
@@ -882,20 +861,19 @@ def season_page():
 def export_results_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_admin_export_results')
 
   g.active_event_id = db.reg_get_int('active_event_id')
-  if not db.event_exists(g.active_event_id):
-    flash("No active event!", 'error')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
-  g.active_event = db.event_get(g.active_event_id)
   
   output_format = request.form.get('format', 'csv')
 
   # sort entries into car class
   g.class_entry_list = {}
-  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
-  for entry in g.entry_driver_list:
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  for entry in g.driver_entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
     if entry['scores_visible']:
@@ -906,7 +884,7 @@ def export_results_page():
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
-  for entry in g.entry_driver_list:
+  for entry in g.driver_entry_list:
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs)
 
   output = StringIO()
@@ -980,7 +958,6 @@ def export_results_page():
 @app.route('/debug/registry', methods=['GET','POST'])
 def debug_registry_page():
   db = get_db()
-  db.reg_inc('.pc_admin_debug_registry')
   if request.method == 'POST' and request.form.get('action') == 'update':
     for key in request.form:
       if key != 'action':
@@ -1004,15 +981,7 @@ def debug_registry_page():
 @app.route('/debug')
 def debug_page():
   db = get_db()
-  db.reg_inc('.pc_admin_debug')
-  output = ""
-  output += "<h3>Page Counts:</h3>"
-  output += "index = %r<br/>" % db.reg_get('.pc_admin_index', 0)
-  output += "settings = %r<br/>" % db.reg_get('.pc_admin_settings', 0)
-  output += "drivers = %r<br/>" % db.reg_get('.pc_admin_drivers', 0)
-  output += "edit_driver = %r<br/>" % db.reg_get('.pc_admin_edit_driver', 0)
-  output += "next_driver = %r<br/>" % db.reg_get('.pc_admin_next_driver', 0)
-  output += "scanner_data = %r<br/>" % db.reg_get('.pc_admin_scanner_data', 0)
+  output = "Nothing to see here!"
   return output
 
 

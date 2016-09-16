@@ -4,7 +4,6 @@
   <title>RallyX Live Scoring</title>
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
-  <script type=text/javascript src="{{url_for('static', filename='jquery.floatThead.min.js') }}"></script>
 
   <style>
   table.latest, table.fastest, table.scores, table.cone_killer, table.lost_and_found {
@@ -80,22 +79,19 @@
   {% if g.auto_refresh %}
   <meta http-equiv="refresh" content="{{g.auto_refresh}}">
   {% endif %}
-<script>
-$(document).ready(function(){
-  $('table.scores').floatThead();
-});
-</script>
 </head>
 <body>
   <h1>RallyX Live Scoring</h1>
   <span>All scores are provisional pending fianal audit by event officials.</span>
-  <h3><a href="{{url_for('finish_page')}}">Latest runs</a></h3>
+  <h3><a href="{{url_for('finish_page')}}">Latest Runs</a></h3>
+  <h3><a href="{{url_for('sectors_page')}}">Sector Times</a></h3>
 
   <div>
     <h2>Event Scores</h2>
     <a name="top" />
     <span>()=Drop Run</span>
     <table class="scores">
+      {% for car_class in g.rules.car_class_list %}
       <thead>
       <tr>
         <th colspan=4></th>
@@ -120,8 +116,6 @@ $(document).ready(function(){
         <th>In Class</th>
       </tr>
       </thead>
-      <tr class="break"></tr>
-      {% for car_class in g.rules.car_class_list %}
       <tbody class="{{ loop.cycle('blue','green','red','yellow','cyan','magenta') }}">
         {% if car_class in g.class_entry_list %}
         <tr class="odd">

@@ -38,7 +38,7 @@
       <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
       <p><label>Entry:</label>*<select name="entry_id" required>
         <option disabled selected>-- Select Entry --</option>
-        {% for entry in g.entry_driver_list %}
+        {% for entry in g.driver_entry_list %}
         <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
         <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
         {% else %}
@@ -46,7 +46,7 @@
         {% endfor %}
       </select></p>
       <p><label>Time:</label>*<input type="text" name="penalty_time" pattern="\s*((([0-9]+:)?[0-9]+:)?[0-9]+(\.[0-9]+)?)\s*" size="12" title="[[HH:]MM:]SS.sss" style="text-align:right"/> [[HH:]MM:]SS.sss</p>
-      <p><label>Reason:</label> <input type="text" size=40 name="penalty_note" /></p>
+      <p><label>Reason:</label> <input type="text" size=40 name="penalty_note" /> Warning: publicly visible!</p>
       <br/>
       <p><label><b>* = required</b></label> <button type="submit" name="action" value="insert">Add Penalty</button></p>
     </form>
@@ -76,7 +76,7 @@
       <td>
         <select name="entry_id" required>
           <option disabled selected>-- Select Entry --</option>
-          {% for entry in g.entry_driver_list %}
+          {% for entry in g.driver_entry_list %}
           <option value="{{entry.entry_id}}" {{'selected' if entry.entry_id == penalty.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
           <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
           {% else %}

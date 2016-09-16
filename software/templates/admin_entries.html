@@ -44,10 +44,6 @@
           <option disabled>None</option>
         {% endfor %}
       </select></p>
-      <p><label>Dual Driver:</label> <select name="dual_driver">
-        <option value="0" >No</option>
-        <option value="1" >Yes</option>
-      </select></p>
       <p><label>Car Year:</label> <input type="text" size=40 name="car_year" /></p>
       <p><label>Car Make:</label> <input type="text" size=40 name="car_make" /></p>
       <p><label>Car Model:</label> <input type="text" size=40 name="car_model" /></p>
@@ -66,7 +62,7 @@
         <option value="1" selected>Yes</option>
         <option value="0" >No</option>
       </select></p>
-      <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assign" /></p>
+      <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assignment" /></p>
       <p><label>Show Scores:</label> <select name="scores_visible">
         <option value="1" selected>Yes</option>
         <option value="0" >No</option>
@@ -81,7 +77,16 @@
     </form>
   </div>
   <hr/>
-  <h2>Entry List ({{g.entry_driver_list|length}})</h2>
+  <div>
+    <h2>Entry Check In</h2>
+    <form action="{{url_for('entries_page')}}" method='POST'>
+      <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
+      <p><label>Card #:</label> <input type="number" min="0" max="9999999999" size=40 name="card_number" autofocus /> <button type="submit" name="action" value="card_check_in">Check In</button></p>
+    </form>
+  </div>
+
+  <hr/>
+  <h2>Entry List ({{g.driver_entry_list|length}})</h2>
   <table class="simple">
     <tr>
       <th colspan=2></th>
@@ -95,7 +100,7 @@
       <th class="nowrap">Note</th>
     </tr>
     <tr class="break"></tr>
-    {% for entry in g.entry_driver_list %}
+    {% for entry in g.driver_entry_list %}
     <a name="{{entry.entry_id}}" />
     <tr id="{{entry.entry_id}}">
       <td><button onclick='$("#edit_{{entry.entry_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{entry.entry_id}}").offset().top});'>Edit</button></td>
@@ -110,7 +115,7 @@
       <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
       <td class="{{'green' if entry.card_number else 'red'}}">{{entry.card_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
-      <td>{{entry.work_assign}}</td>
+      <td>{{entry.work_assignment}}</td>
       <td>{{'Any' if entry.race_session == '-1' or entry.race_session is none else entry.race_session}}</td>
       <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
     <tr>
@@ -125,10 +130,6 @@
             {% else %}
               <option disabled>None</option>
             {% endfor %}
-          </select></p>
-          <p><label>Dual Driver:</label> <select name="dual_driver">
-            <option value="0" {{'selected' if not entry.dual_driver}}>No</option>
-            <option value="1" {{'selected' if entry.dual_driver}}>Yes</option>
           </select></p>
           <p><label>Car Year:</label> <input type="text" size=40 name="car_year" value="{{entry.car_year if entry.car_year}}" /></p>
           <p><label>Car Make:</label> <input type="text" size=40 name="car_make" value="{{entry.car_make if entry.car_make}}" /></p>
@@ -147,7 +148,7 @@
             <option value="0" {{'selected' if not entry.season_points}}>No</option>
             <option value="1" {{'selected' if entry.season_points}}>Yes</option>
           </select></p>
-          <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assign" value="{{entry.work_assign if entry.work_assign}}"/></p>
+          <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assignment" value="{{entry.work_assignment if entry.work_assignment}}"/></p>
           <p><label>Show Scores:</label> <select name="scores_visible">
             <option value="0" {{'selected' if not entry.scores_visible}}>No</option>
             <option value="1" {{'selected' if entry.scores_visible}}>Yes</option>
@@ -161,7 +162,7 @@
           <button type="submit" name="action" value="update">Save Changes</button> - 
           [{{entry.entry_id}}]
 
-          <!--<span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete" value="do_it"/> - <button type="submit" name="action" value="delete">Delete Entry</button></span>-->
+          <span style="float: right"> Confirm Delete:<input type="checkbox" name="confirm_delete"/> - <button type="submit" name="action" value="delete">Delete Entry</button></span>
         </form>
       </td>
     </tr>

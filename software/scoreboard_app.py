@@ -34,6 +34,17 @@ except:
 app.jinja_env.filters['format_time']=format_time
 app.jinja_env.filters['pad']=pad
 
+try:
+  import markdown
+except ImportError:
+  app.logger.warning("Unable to import markdown module")
+else:
+  app.jinja_env.filters['markdown']=markdown.markdown
+
+# remove extra whitespace from jinja output
+app.jinja_env.trim_blocks=True
+app.jinja_env.lstrip_blocks=True
+
 
 #######################################
 
@@ -63,32 +74,31 @@ def close_db(exception):
 def index_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_scoreboard_index')
-
-  g.active_event_id = db.reg_get_int('active_event_id')
   
-  if g.active_event_id is None:
+  g.active_event_id = db.reg_get_int('active_event_id')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
     return "No active event."
 
-  g.active_event = db.event_get(g.active_event_id)
   g.auto_refresh = request.args.get('auto_refresh')
 
-  # sort entries into car class
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+
   g.class_entry_list = {}
-  g.entry_driver_list = db.entry_driver_list(g.active_event_id)
-  for entry in g.entry_driver_list:
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  for entry in g.driver_entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
     if entry['scores_visible']:
       g.class_entry_list[entry['car_class']].append(entry)
 
-  # sort each car class by event_time_ms
+  # sort each car class by event_time_ms and run_count
   for car_class in g.class_entry_list:
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
   for entry in g.entry_driver_list:
-    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs)
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs, sort='A')
 
   return render_template('scoreboard_index.html')
 
@@ -97,32 +107,19 @@ def index_page():
 def finish_page():
   db = get_db()
   g.rules = get_rules(db)
-  db.reg_inc('.pc_scoreboard_finish')
-
+  
   g.active_event_id = db.reg_get_int('active_event_id')
-
-  if g.active_event_id is None:
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
     return "No active event."
 
-  g.active_event = db.event_get(g.active_event_id)
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.latest_runs = []
-  for run in db.run_list(event_id=g.active_event_id, state_filter=('scored',), rev_sort=True, limit=10):
-    run_info = {'car_class':None, 'first_name':None, 'last_name':None, 'alt_name':None, 'raw_time':None, 'cones':None, 'gates':None, 'total_time':None, 'run_count':None, 'car_number':None}
-    entry = db.entry_driver_get(run['entry_id'])
-    if entry is not None:
-      run_info['car_class'] = entry['car_class']
-      run_info['first_name'] = entry['first_name']
-      run_info['last_name'] = entry['last_name']
-      run_info['car_number'] = entry['car_number']
-    run_info['raw_time'] = run['raw_time']
-    run_info['cones'] = run['cones']
-    run_info['gates'] = run['gates']
-    run_info['total_time'] = run['total_time']
-    run_info['run_count'] = run['run_count']
-    logging.debug(run_info)
-    g.latest_runs.append(run_info)
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+
+  g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
+
+  g.latest_runs = db.run_list(event_id=g.active_event_id, state="scored", limit=10, sort='D')
 
   return render_template('scoreboard_finish.html')
 
@@ -131,14 +128,33 @@ def finish_page():
 def sectors_page():
   db = get_db()
   g.rules = get_rule(db)
-  db.reg_inc('.pc_scoreboard_finish')
-
   g.active_event_id = db.reg_get_int('active_event_id')
 
   if g.active_event_id is None:
     return "No active event."
 
   return render_template('scoreboard_sectors.html')
+
+
+@app.route('/penalties')
+def penalties_page():
+  db = get_db()
+  g.rules = get_rule(db)
+
+  g.active_event_id = db.reg_get_int('active_event_id')
+  g.active_event = db.select_one('events', event_id=g.active_event_id)
+  if g.active_event is None:
+    return "No active event."
+
+  g.auto_refresh = request.args.get('auto_refresh')
+
+  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+
+  g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
+
+  g.penalty_list = db.select_all('penalties', event_id=g.active_event_id)
+
+  return render_template('scoreboard_penalties.html')
 
 
 #######################################
