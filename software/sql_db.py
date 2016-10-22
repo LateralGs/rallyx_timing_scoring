@@ -39,7 +39,8 @@ class ScoringDatabase(apsw.Connection):
     else:
       self.log = logger
     super(ScoringDatabase,self).__init__(path)
-    self.setbusytimeout(5000)
+    self._context_stack = 0 # used for nesting context manager calls using 'with' stantement
+    self.setbusytimeout(10000) # 10 seconds
     self.setrowtrace(dict_row_factory)
     self.check_schema()
     
@@ -67,16 +68,23 @@ class ScoringDatabase(apsw.Connection):
     cur.execute("PRAGMA journal_mode=wal")
 
   # change default behaviour for context handlers to use begin immediate instead of savepoint that uses defered
-  # NOTE context can not be nested!
   def __enter__(self):
-    self.begin_immediate()
+    if self._context_stack <= 0:
+      self.begin_immediate()
+      self._context_stack = 1
+    else:
+      self._context_stack += 1
     return self
 
   def __exit__(self, exc_type, exc_value, traceback):
-    if exc_type is None:
-      self.commit()
-    else:
-      self.rollback()
+    if self._context_stack > 0:
+      self._context_stack -= 1
+
+    if self._context_stack <= 0:
+      if exc_type is None:
+        self.commit()
+      else:
+        self.rollback()
 
   def commit(self):
     self.cursor().execute("commit")

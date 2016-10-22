@@ -3,29 +3,35 @@ from util import *
 
 # customizable rules for calculating event scoring
 
+
 ###########################################################
 
 class BasicRules(object):
   """ Basic RallyX rules with no drop runs """
+
+  # default rule settings
+  car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR'] # short identifiers
+  car_class_names = { # long display names
+    'SA':'Stock All',
+    'PA':'Prepared All',
+    'MA':'Modified All',
+    'SF':'Stock Front',
+    'PF':'Prepared Front',
+    'MF':'Modified Front',
+    'SR':'Stock Rear',
+    'PR':'Prepared Rear',
+    'MR':'Modified Rear',
+    'TO':'Time Only',
+    }
+  car_class_alias = {} # used for assigning alternate names for classes, used for importing
+  cone_penalty = 2
+  gate_penalty = 10
+  min_runs = 1 # default, these will be updated when sync'ed with the event in the database
+  max_runs = 5 # default, these will be updated when sync'ed with the event in the database
+  drop_runs = 0
+
   def __init__(self, **kwarg):
     self.log = kwarg.get('logger', logging.getLogger(__name__))
-    self.cone_penalty = kwarg.get('cone_penalty', 2)
-    self.gate_penalty = kwarg.get('gate_penalty', 10)
-    self.min_runs = kwarg.get('min_runs', 3)
-    self.max_runs = kwarg.get('max_runs', 5)
-    self.drop_runs = kwarg.get('drop_runs', 0) # not used for BasicRules, placeholder for those that do
-    self.car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR']
-    self.car_class_names = {
-      'SA':'Stock All',
-      'PA':'Prepared All',
-      'MA':'Modified All',
-      'SF':'Stock Front',
-      'PF':'Prepared Front',
-      'MF':'Modified Front',
-      'SR':'Stock Rear',
-      'PR':'Prepared Rear',
-      'MR':'Modified Rear',
-      'TO':'Time Only'}
 
 
   def sync(self, db):
@@ -40,8 +46,12 @@ class BasicRules(object):
       self.max_runs = event['max_runs']
       self.drop_runs = event['drop_runs']
 
+  def calc_dnf(self, db, run_id):
+    # calculate an value for a DNF/DNS
+    # some rule sets have a DNF count as slowest run + some penalty time
+    return 0
 
-  def run_recalc(self, db, run_id):
+  def recalc_run(self, db, run_id):
     with db:
       run = db.query_one("SELECT run_id, entry_id, start_time_ms, finish_time_ms, split_1_time_ms, split_2_time_ms, cones, gates FROM runs WHERE run_id=? AND NOT deleted", (run_id,))
       if run is None:
@@ -67,8 +77,8 @@ class BasicRules(object):
           run['total_time_ms'] += run['cones'] * self.cone_penalty * 1000 # penalty is in seconds, we need milliseconds
         if run['gates']:
           run['total_time_ms'] += run['gates'] * self.gate_penalty * 1000 # penalty is in seconds, we need milliseconds
-        run['raw_time'] = format_time(raw_time_ms)
-        run['total_time'] = format_time(total_time_ms)
+        run['raw_time'] = format_time(run['raw_time_ms'])
+        run['total_time'] = format_time(run['total_time_ms'])
       elif run['finish_time_ms'] <= run['start_time_ms']:
         run['raw_time'] = "INVALID"
         run['total_time'] = "INVALID"
@@ -89,14 +99,19 @@ class BasicRules(object):
       db.execute("UPDATE runs SET recalc=0, raw_time=:raw_time, total_time=:total_time, raw_time_ms=:raw_time_ms, total_time_ms=:total_time_ms, run_count=:run_count WHERE run_id=:run_id", run)
 
 
-  def entry_recalc(self, db, entry_id):
+  def recalc_entry(self, db, entry_id):
+    self.log.debug("recalc_entry: %r", entry_id)
+    if entry_id is None:
+      return
     with db:
       entry = {'entry_id':entry_id}
       penalty_time_ms = db.query_single("SELECT SUM(time_ms) FROM penalties WHERE entry_id=? AND NOT deleted", (entry_id,))
       entry['event_penalties'] = format_time(penalty_time_ms, None)
 
       dropped_runs = []
-      scored_runs = db.query_all("SELECT run_id, start_time_ms, finish_time_ms, total_time_ms FROM runs WHERE state == 'scored' AND entry_id=? AND NOT deleted", (entry_id,))
+      scored_runs = db.query_all("SELECT run_id, start_time_ms, finish_time_ms, total_time_ms FROM runs WHERE state = 'scored' AND entry_id=? AND NOT deleted", (entry_id,))
+
+      self.log.debug("len(scored_runs) = %r", len(scored_runs))
 
       # sort runs
       scored_runs.sort(cmp=time_cmp, key=lambda r: r['total_time_ms'])
@@ -104,11 +119,15 @@ class BasicRules(object):
       # drop extra runs beyond max_runs
       dropped_runs += scored_runs[self.max_runs:]
       del scored_runs[self.max_runs:]
+      
+      self.log.debug("len(scored_runs) = %r", len(scored_runs))
 
       # regular drop runs
-      if len(scored_runs) > self.min_runs:
+      if len(scored_runs) > self.min_runs and self.drop_runs > 0:
         dropped_runs += scored_runs[-self.drop_runs:]
         del scored_runs[-self.drop_runs:]
+      
+      self.log.debug("len(scored_runs) = %r", len(scored_runs))
       
       entry['event_runs'] = len(scored_runs)
       entry['event_time_ms'] = penalty_time_ms if penalty_time_ms is not None else 0
@@ -128,12 +147,12 @@ class BasicRules(object):
         entry['event_time'] = "DNF"
         entry['event_time_ms'] = 0
       else:
-        entry['event_time'] = format_time(entry['event_time_ms'])
+        entry['event_time'] = format_time(entry['event_time_ms'],'PENDING')
 
       db.execute("UPDATE entries SET recalc=0, event_time_ms=:event_time_ms, event_time=:event_time, event_penalties=:event_penalties, event_runs=:event_runs WHERE entry_id=:entry_id", entry)
 
   
-  def run_count_recalc(self, db, entry_id):
+  def recalc_run_count(self, db, entry_id):
     with db:
       run_count = 0
       cur = db.cursor()
@@ -159,25 +178,87 @@ class BasicRules(object):
 #          db.cursor().execute("INSERT INTO runs (event_id, entry_id, start_time_ms, raw_time, total_time, run_count, state) VALUES (?, ?, 0, 'DNS', 'DNS', ?, 'scored')", (event_id, run['entry_id'], count))
 #
 
-  def season_recalc(self, db):
+  def recalc_season(self, db):
     raise NotImplementedError()
 
 
 ###########################################################
 ###########################################################
 
-class ORG_Rules(BasicRules):
+class ORG_RallyCross_Rules(BasicRules):
   """ Oregon Rally Group rules based on 2016 SCCA RallyX rules and regional supplimental rules """
-  def __init__(self, **kwarg):
-    super(ORG_Rules,self).__init__(**kwarg)
-    self.drop_events = kwarg.get('drop_events', 1)
-    self.season_points_pos = [20, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2]
-    self.season_points_finish = 2
-    self.season_points_dnf = 1
+  season_points_pos = [20, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2]
+  season_points_finish = 2
+  season_points_dnf = 1
+  drop_events = 1
+  drop_runs = 1
+  min_runs = 3
 
 
 ###########################################################
 ###########################################################
+
+class NWRA_RallyCross_Rules(BasicRules):
+  car_class_list = ['SA','PA','MA','SF','PF','MF','SR','PR','MR']
+  car_class_names = {
+    'SA':'Stock All',
+    'PA':'Prepared All',
+    'MA':'Modified All',
+    'SF':'Stock Front',
+    'PF':'Prepared Front',
+    'MF':'Modified Front',
+    'SR':'Stock Rear',
+    'PR':'Prepared Rear',
+    'MR':'Modified Rear',
+    'TO':'Time Only'
+    }
+  car_class_alias = {
+    'Mod AWD':'MA',
+    'Prepared AWD':'PA',
+    'Stock AWD':'SA',
+    'Mod FWD':'MF',
+    'Prepared FWD':'PF',
+    'Stock FWD':'SF',
+    'Mod RWD':'MR',
+    'Prepared RWD':'PR',
+    'Stock RWD':'SR',
+      }
+  
+  def calc_dnf(db, run_id):
+    pass # FIXME
+
+
+class NWRA_RallySprint_Rules(BasicRules):
+  car_class_list = ['4O','4U','2O','2U']
+  car_class_names = {
+    '4O':'AWD Over',
+    '4U':'AWD Under',
+    '2O':'2WD Over',
+    '2U':'2WD Under',
+    }
+  car_class_alias = {
+      'AWD Over':'AO',
+      'AWD Under':'AU',
+      '2WD Over':'2O',
+      '2WD Under':'2U',
+      }
+  cone_penalty = 30
+  gate_penalty = 50
+  dnf_penalty = 120 # 2 minutes
+
+  def calc_dnf(db, run_id):
+    pass # FIXME
+
+
+###########################################################
+###########################################################
+
+RULE_SETS = { 
+    'ORG RallyCross':ORG_RallyCross_Rules, 
+    'NWRA RallyCross': NWRA_RallyCross_Rules,
+    'NWRA RallySprint': NWRA_RallySprint_Rules,
+    }
+
 
 #class NWRA_Rules(BasicRules):
 #  """ NorthWest Rally Asscociation rules based on 2016 SCCA RallyX rules and regional supplimental rules """

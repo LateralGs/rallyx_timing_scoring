@@ -12,6 +12,7 @@ from util import *
 from sql_db import ScoringDatabase
 from time import time
 import datetime
+import markdown
 
 #######################################
 
@@ -19,7 +20,12 @@ import datetime
 app = Flask(__name__)
 
 # load our config settings
-app.config.from_pyfile('config.py')
+app.config.from_pyfile('flask_config.py')
+
+try:
+  import scoring_config as config
+except ImportError:
+  raise ImportError("Unable to load scoring_config.py, please reference install instructions!")
 
 # allows use of secure cookies for sessions
 try:
@@ -33,13 +39,7 @@ except:
 # add some useful template filters
 app.jinja_env.filters['format_time']=format_time
 app.jinja_env.filters['pad']=pad
-
-try:
-  import markdown
-except ImportError:
-  app.logger.warning("Unable to import markdown module")
-else:
-  app.jinja_env.filters['markdown']=markdown.markdown
+app.jinja_env.filters['markdown']=markdown.markdown
 
 # remove extra whitespace from jinja output
 app.jinja_env.trim_blocks=True
@@ -52,13 +52,13 @@ app.jinja_env.lstrip_blocks=True
 def get_db():
   db = getattr(g, '_database', None)
   if db is None:
-    db = g._database = ScoringDatabase(app.config['SCORING_DB_PATH'])
+    db = g._database = ScoringDatabase(config.SCORING_DB_PATH)
   return db
 
 def get_rules(db):
   rules = getattr(g, '_rules', None)
   if rules is None:
-    rules = g._rules = app.config['SCORING_RULES_CLASS']()
+    rules = g._rules = config.SCORING_RULES_CLASS()
   rules.sync(db)
   return rules
 
@@ -97,8 +97,16 @@ def index_page():
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
-  for entry in g.entry_driver_list:
-    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state_filter=('scored',), limit=g.rules.max_runs, sort='A')
+  for entry in g.driver_entry_list:
+    # FIXME TODO add other run states so we can show pending runs in scores
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored',), limit=g.rules.max_runs)
+  
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
+  
+  # create lookup dict for driver_id's
+  g.driver_dict = {}
+  for driver in g.driver_list:
+    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('scoreboard_index.html')
 
@@ -120,6 +128,13 @@ def finish_page():
   g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
 
   g.latest_runs = db.run_list(event_id=g.active_event_id, state="scored", limit=10, sort='D')
+
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
+  
+  # create lookup dict for driver_id's
+  g.driver_dict = {}
+  for driver in g.driver_list:
+    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('scoreboard_finish.html')
 

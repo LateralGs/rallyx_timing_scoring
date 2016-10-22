@@ -159,9 +159,9 @@ def time_cmp(a,b):
 
 def entry_cmp(a,b):
   util_log.debug("entry_cmp: %r, %r", a, b)
-  if a['scored_runs'] < b['scored_runs']:
+  if a['event_runs'] < b['event_runs']:
     return 1
-  elif a['scored_runs'] > b['scored_runs']:
+  elif a['event_runs'] > b['event_runs']:
     return -1
   elif a['event_time_ms'] in (0,None) and b['event_time_ms'] in (0,None):
     return 0

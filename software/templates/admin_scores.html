@@ -69,14 +69,14 @@
   </style>
 </head>
 <body>
-  <h1>Scoring Admin - Scoreboard</h2>
+  <h1>Scoring Admin - Scoreboard <a href="{{url_for('scores_page')}}">REFRESH</a></h2>
   {% include "admin_nav.html" %}
   {% include "flash_message.html" %}
 
   <div>
     <h2>Event Scores</h2>
     <form action="{{url_for('scores_page')}}"  method='POST'>
-    <button type="submit" name="action" value="recalc">Recalculate Scores</button> - 
+    <button type="submit" name="action" value="event_recalc">Recalculate Scores</button> - 
     <button type="submit" name="action" value="finalize">Finalize Runs</button> - 
     <button type="submit" name="action" value="prune_dns">Prune DNS</button> - 
     <button type="submit" name="action" value="export_results">Export Results</button>
@@ -114,7 +114,14 @@
         <tr class="{{ loop.cycle('even', 'odd') }}">
           <td>{{entry.car_class}}</td>
           <td><a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">{{entry.car_number}}</a></td>
-          <td class="driver_name run_border"><a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
+          <td class="driver_name run_border">
+            <a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">
+              {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}
+              {% if entry.co_driver_id is not none %}
+                / {{g.driver_dict[entry.co_driver_id].first_name}} {{'('+g.driver_dict[entry.co_driver_id].alt_name+')' if g.driver_dict[entry.co_driver_id].alt_name}} {{g.driver_dict[entry.co_driver_id].last_name}}
+              {% endif %}
+            </a>
+          </td>
           {% for run in g.entry_run_list[entry.entry_id] %}
             <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.raw_time}}</a></td>
             <td class="{{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1#{{run['run_id']}}">{{run.cones if run.cones > 0 else '-'}}</a></td>
@@ -131,7 +138,7 @@
           <td>{{entry.event_penalties if entry.event_penalties}}</td>
           <td>{{entry.event_time if entry.event_time}}</td>
           <td>{{loop.index if entry.event_time}}</td>
-          <td><b>{{'RECALC' if entry.recalc}}</b></td>
+          <td><b>{{'RECALC = %r' % entry.recalc if entry.recalc}}</b></td>
         </tr>
         {% endfor %}
         {% else %}

@@ -32,6 +32,7 @@ CREATE TABLE entries (
   entry_id        INTEGER PRIMARY KEY, -- rowid
   event_id        INTEGER NOT NULL,
   driver_id       INTEGER NOT NULL,
+  co_driver_id    INTEGER,
   car_year        TEXT,
   car_make        TEXT,
   car_model       TEXT,
@@ -101,7 +102,7 @@ CREATE TABLE runs (
 
 CREATE TABLE times (
   time_id       INTEGER PRIMARY KEY, -- rowid
-  event_id      TEXT, -- UUID
+  event_id      INTEGER,
   channel       TEXT,
   time_ms       INT,
   invalid       INT NOT NULL DEFAULT 0,
@@ -122,6 +123,7 @@ CREATE TABLE events (
   event_note    TEXT,
   max_runs      INT   DEFAULT 5,
   drop_runs     INT   DEFAULT 0, -- just in case we need to calc it per event
+  rule_set      TEXT,
 
   deleted       INT   NOT NULL DEFAULT 0, -- used instead of deleting from database
   timestamp     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP -- used for sorting and merging

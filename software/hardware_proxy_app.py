@@ -42,7 +42,7 @@ def handle_next_entry(db, data):
 
   race_session = db.reg_get('race_session')
   active_event_id = db.reg_get('active_event_id')
-  entry_list = list(db.cursor().execute("SELECT entry_id, race_session FROM entries WHERE event_id=? AND card_number=?", (active_event_id, card_number)))
+  entry_list = db.query_all("SELECT entry_id, race_session FROM entries WHERE event_id=? AND card_number=?", (active_event_id, card_number))
 
   if entry_list is None or len(entry_list) == 0:
     log.warning("No entry_id found")
@@ -71,12 +71,7 @@ def handle_next_entry(db, data):
       db.reg_set("next_entry_id", next_entry_id)
       db.reg_set("next_entry_msg", None)
       log.info("Set next_entry_id, %r", next_entry_id)
-      if db.reg_get_int('special_scan_id') == next_entry_id:
-        play_sound(config.SOUND_GOOD_SCAN)
-        sleep(0.5)
-        play_sound("sounds/need_for_speed.mp3") # FIXME EASTER EGG
-      else:
-        play_sound(config.SOUND_GOOD_SCAN)
+      play_sound(config.SOUND_GOOD_SCAN)
 
 #######################################
 

@@ -23,11 +23,11 @@
         <legend>Serial Ports</legend>
       <p>
         <label>RFID Reader:</label>
-        <select name="serial_port_rfid">
-          {% if g.serial_port_rfid is not none %}
+        <select name="serial_port_rfid_reader">
+          {% if g.serial_port_rfid_reader is not none %}
           <option>None</option>
           {% endif %}
-          <option selected>{{g.serial_port_rfid}}</option>
+          <option selected>{{g.serial_port_rfid_reader}}</option>
           <option disabled>Ports:</option>
           {% for port in g.serial_list %}
           <option>{{port}}</option>

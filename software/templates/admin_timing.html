@@ -126,6 +126,12 @@ $(document).ready(function(){
       return false;
     }
   });
+  $('.scored_save').click(function(){
+    $(this).parent().parent().find('.run_state').val('scored');
+  });
+  $('.tossout_save').click(function(){
+    $(this).parent().parent().parent().find('.run_state').val('tossout');
+  });
 });
 </script>
 </head>
@@ -157,8 +163,7 @@ $(document).ready(function(){
       {% else %}
       <p><label>Tag Heuer 520:</label><b>{{g.tag_heuer_status}}</b></p>
       <p><label>Barcode Scanner:</label><b>{{g.barcode_scanner_status}}</b></p>
-      <p><label>USB RFID Reader:</label><b>{{g.usb_rfid_status}}</b></p>
-      <p><label>RF RFID Reader:</label><b>{{g.wireless_rfid_status}}</b></p>
+      <p><label>RFID Reader:</label><b>{{g.rfid_reader_status}}</b></p>
       {% endif %}
     </div>
 
@@ -318,6 +323,9 @@ $(document).ready(function(){
               <td>
                 <button type="submit" class="run_save" name="action" value="update">Save</button>
               </td>
+              <td>
+                <button type="submit" class="scored_save" name="action" value="update">Scored & Save</button>
+              </td>
               
             <!-- END FIRST ROW -->
             </tr><tr>
@@ -355,6 +363,9 @@ $(document).ready(function(){
               </td>
               <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left submit_save" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" placeholder="{{g.car_dict[run.entry_id]}}" /></td>
               <td><button type="reset" class="run_reset" tabindex=1>Reset</button></td>
+              <td>
+                <button type="submit" class="tossout_save" name="action" value="update">Tossout & Save</button>
+              </td>
 
             <!-- END THIRD ROW -->
             </tr>

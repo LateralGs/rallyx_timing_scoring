@@ -10,23 +10,36 @@ from flask import *
 from os import urandom
 from util import *
 from sql_db import ScoringDatabase
-from time import time
+from time import time, sleep
 import datetime
 import csv
 from cStringIO import StringIO
 from serial.tools.list_ports import comports
 from glob import glob
+import markdown
+import threading
+
+import uwsgidecorators
+import uwsgi
 
 #######################################
 # flash categories
 F_ERROR = 'error'
 F_WARN = 'warning'
 
+# uwsgi signal for triggering recalc mule
+RECALC_SIGNAL = 1
+
 # main wsgi app
 app = Flask(__name__)
 
-# load our config settings
-app.config.from_pyfile('config.py')
+# load our config settings for flask
+app.config.from_pyfile('flask_config.py')
+
+try:
+  import scoring_config as config
+except ImportError:
+  raise ImportError("Unable to load scoring_config.py, please reference install instructions!")
 
 # allows use of secure cookies for sessions
 try:
@@ -40,13 +53,7 @@ except:
 # add some useful template filters
 app.jinja_env.filters['format_time']=format_time
 app.jinja_env.filters['pad']=pad
-
-try:
-  import markdown
-except ImportError:
-  app.logger.warning("Unable to import markdown module")
-else:
-  app.jinja_env.filters['markdown']=markdown.markdown
+app.jinja_env.filters['markdown']=markdown.markdown
 
 # remove extra whitespace from jinja output
 app.jinja_env.trim_blocks=True
@@ -59,7 +66,7 @@ app.jinja_env.lstrip_blocks=True
 def get_db():
   db = getattr(g, '_database', None)
   if db is None:
-    db = g._database = ScoringDatabase(app.config['SCORING_DB_PATH'])
+    db = g._database = ScoringDatabase(config.SCORING_DB_PATH)
   return db
 
 
@@ -73,7 +80,7 @@ def close_db(exception):
 def get_rules(db):
   rules = getattr(g, '_rules', None)
   if rules is None:
-    rules = g._rules = app.config['SCORING_RULES_CLASS']()
+    rules = g._rules = config.SCORING_RULES_CLASS()
   rules.sync(db)
   return rules
 
@@ -168,6 +175,7 @@ def events_page():
       return redirect(url_for('events_page'))
     # flag all entries for this event to be recalculated
     db.set_event_recalc(event_id)
+    uwsgi.mule_msg('recalc')
     flash("Event scores recalculating")
     return redirect(url_for('events_page'))
 
@@ -283,8 +291,38 @@ def timing_page():
       # make sure we recalculate all entries event totals based on new max runs
       # this is mainly needed with drop runs > 0
       db.set_event_recalc(g.active_event_id)
+      uwsgi.mule_msg('recalc')
       flash("Event scores recalculating")
     return redirect(url_for('timing_page'))
+
+  elif action == 'dnf':
+    run_id = request.form.get('run_id')
+    if not db.run_exists(run_id):
+      flash("Invalid run id", F_ERROR)
+      return redirect(url_for('timing_page'))
+    db.update('runs', run_id, start_time_ms=None, finish_time_ms=0, state='finished')
+    # FIXME should this be deferred?
+    g.rules.recalc_run(db, run_id)
+    flash("Run recalc")
+    entry_id = request.form.get('old_entry_id')
+    db.set_entry_recalc(entry_id)
+    uwsgi.mule_msg('recalc')
+    flash("Entry recalc")
+
+  elif action == 'dns':
+    run_id = request.form.get('run_id')
+    if not db.run_exists(run_id):
+      flash("Invalid run id", F_ERROR)
+      return redirect(url_for('timing_page'))
+    db.update('runs', run_id, start_time_ms=0, finish_time_ms=None, state='finished')
+    # FIXME should this be deferred?
+    g.rules.recalc_run(db, run_id)
+    flash("Run recalc")
+    entry_id = request.form.get('old_entry_id')
+    db.set_entry_recalc(entry_id)
+    uwsgi.mule_msg('recalc')
+    flash("Entry recalc")
+
 
   elif action == 'update':
     run_id = request.form.get('run_id')
@@ -331,14 +369,16 @@ def timing_page():
     old_entry_id = request.form.get('old_entry_id')
     if old_entry_id != request.form.get('entry_id') and old_entry_id != 'None':
       db.set_entry_recalc(old_entry_id)
+      uwsgi.mule_msg('recalc')
       flash("Old entry recalc")
 
     # FIXME should this be deferred?
-    g.rules.run_recalc(db, run_id)
+    g.rules.recalc_run(db, run_id)
     flash("Run recalc")
 
     if 'entry_id' in run_data and run_data['entry_id'] is not None:
       db.set_entry_recalc(run_data['entry_id'])
+      uwsgi.mule_msg('recalc')
       flash("Entry recalc")
 
     return redirect(url_for('timing_page'))
@@ -352,7 +392,7 @@ def timing_page():
         run_data[key] = clean_str(request.form.get(key))
     run_id = db.insert('runs', **run_data)
     # FIXME should this be deferred?
-    g.rules.run_recalc(db, run_id)
+    g.rules.recalc_run(db, run_id)
     flash("Added new run [%r]" % run_id)
     return redirect(url_for('timing_page'))
 
@@ -384,16 +424,13 @@ def timing_page():
     state_filter += ['scored']
   if session['tossout_filter']:
     state_filter += ['tossout']
-
-  g.disp_time_events = db.reg_get_int('disp_time_events', 20)
   
-  # FIXME change or remove this?
+  g.disp_time_events = db.reg_get_int('disp_time_events', 20)
   g.time_list = db.query_all("SELECT * FROM times WHERE event_id=? ORDER BY time_id DESC LIMIT ?", (g.active_event_id, g.disp_time_events))
-  #db.time_list(g.active_event_id, session['hide_invalid_times'], g.disp_time_events)
 
   g.run_list = db.run_list(event_id=g.active_event_id, entry_id=session['entry_filter'], state=state_filter, sort='d', limit=session['run_limit'])
   g.driver_entry_list = db.driver_entry_list(g.active_event_id)
-  
+
   g.cars_started = db.run_count(event_id=g.active_event_id, state='started')
   g.cars_finished = db.run_count(event_id=g.active_event_id, state='finished')
   
@@ -409,11 +446,10 @@ def timing_page():
   
   g.barcode_scanner_status = db.reg_get('barcode_scanner_status')
   g.tag_heuer_status = db.reg_get('tag_heuer_status')
-  g.usb_rfid_status = db.reg_get('usb_rfid_status')
-  g.wireless_rfid_status = db.reg_get('wireless_rfid_status')
+  g.rfid_reader_status = db.reg_get('rfid_reader_status')
 
   # FIXME change how watchdog is handled
-  g.hardware_ok = bool(time() - db.reg_get_float('hardware_watchdog', 0) < 3)
+  g.hardware_ok = True
   g.start_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_start
   g.finish_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_finish
 
@@ -463,6 +499,8 @@ def entries_page():
     for key in db.table_columns('entries'):
       if key in ['entry_id']:
         continue # ignore
+      elif key == 'co_driver_id' and request.form.get('co_driver_id') == 'None':
+        entry_data[key] = None
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
     if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
@@ -486,6 +524,8 @@ def entries_page():
     for key in db.table_columns('entries'):
       if key in ['entry_id']:
         continue # ignore
+      elif key == 'co_driver_id' and request.form.get('co_driver_id') == 'None':
+        entry_data[key] = None
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
     entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
@@ -518,6 +558,12 @@ def entries_page():
 
   g.driver_entry_list = db.driver_entry_list(g.active_event_id)
   g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
+  
+  # create lookup dict for driver_id's
+  g.driver_dict = {}
+  for driver in g.driver_list:
+    g.driver_dict[driver['driver_id']] = driver
+
   return render_template('admin_entries.html')
 
 
@@ -621,6 +667,7 @@ def penalties_page():
     flash("Penalty added")
 
     db.set_entry_recalc(entry_id)
+    uwsgi.mule_msg('recalc')
     flash("Entry recalculating")
 
     return redirect(url_for('penalties_page'))
@@ -656,9 +703,11 @@ def penalties_page():
       # update previous entry
       flash("old entry recalc")
       db.set_entry_recalc(old_penalty['entry_id'])
+      uwsgi.mule_msg('recalc')
 
     # update current entry
     db.set_entry_recalc(entry_id)
+    uwsgi.mule_msg('recalc')
     flash("entry recalc")
 
     return redirect(url_for('penalties_page'))
@@ -677,6 +726,7 @@ def penalties_page():
     # update previous entry
     flash("old entry recalc")
     db.set_entry_recalc(old_penalty['entry_id'])
+    uwsgi.mule_msg('recalc')
 
     return redirect(url_for('penalties_page'))
 
@@ -745,10 +795,10 @@ def settings_page():
   g.rules = get_rules(db)
 
   if request.form.get('action') == 'update':
-    port = request.form.get('serial_port_rfid')
+    port = request.form.get('serial_port_rfid_reader')
     if port in ('', 'None'):
       port = None
-    db.reg_set('serial_port_rfid', port)
+    db.reg_set('serial_port_rfid_reader', port)
     port = request.form.get('serial_port_tag_heuer')
     if port in ('', 'None'):
       port = None
@@ -760,7 +810,7 @@ def settings_page():
     flash("Settings updated")
     return redirect(url_for('settings_page'))
 
-  g.serial_port_rfid = db.reg_get('serial_port_rfid')
+  g.serial_port_rfid_reader = db.reg_get('serial_port_rfid_reader')
   g.serial_port_tag_heuer = db.reg_get('serial_port_tag_heuer')
   g.serial_port_barcode = db.reg_get('serial_port_barcode')
 
@@ -792,6 +842,7 @@ def scores_page():
     
   elif action == 'event_recalc':
     db.set_event_recalc(g.active_event_id)
+    uwsgi.mule_msg('recalc')
     flash("Event scores recalculating")
     return redirect(url_for('scores_page'))
 
@@ -801,6 +852,7 @@ def scores_page():
       flash("Invalid entry id", F_ERROR)
       return redirect(url_for('entries_page'))
     db.set_entry_recalc(entry_id)
+    uwsgi.mule_msg('recalc')
     flash("Entry score recalculating")
     return redirect(url_for('scores_page'))
 
@@ -832,6 +884,13 @@ def scores_page():
   for entry in g.driver_entry_list:
     # FIXME TODO add other run states so we can show pending runs in scores
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored',), limit=g.rules.max_runs)
+  
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
+  
+  # create lookup dict for driver_id's
+  g.driver_dict = {}
+  for driver in g.driver_list:
+    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('admin_scores.html')
 

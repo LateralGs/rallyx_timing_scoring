@@ -81,10 +81,10 @@
   {% endif %}
 </head>
 <body>
-  <h1>RallyX Live Scoring</h1>
+  <h1>Live Scoring</h1>
   <span>All scores are provisional pending fianal audit by event officials.</span>
   <h3><a href="{{url_for('finish_page')}}">Latest Runs</a></h3>
-  <h3><a href="{{url_for('sectors_page')}}">Sector Times</a></h3>
+  <!--<h3><a href="{{url_for('sectors_page')}}">Sector Times</a></h3>-->
 
   <div>
     <h2>Event Scores</h2>
@@ -92,13 +92,20 @@
     <span>()=Drop Run</span>
     <table class="scores">
       {% for car_class in g.rules.car_class_list %}
+      {% if car_class in g.class_entry_list %}
       <thead>
+      <tr>
+        <th colspan="{{(4*g.rules.max_runs) + 8}}">
+          <a name="{{car_class}}" class="anchor"/>
+            {{g.rules.car_class_names[car_class]}}
+        </th>
+      </tr>
       <tr>
         <th colspan=4></th>
         {% for num in range(g.rules.max_runs) %}
         <th colspan=4>Run {{num+1}}</th>
         {% endfor %}
-        <th colspan=3>Event</th>
+        <th colspan=4>Event</th>
       </tr>
       <tr>
         <th>Class</td>
@@ -114,21 +121,20 @@
         <th>Penalties</th>
         <th>Time</th>
         <th>In Class</th>
+        <th>Status</th>
       </tr>
       </thead>
       <tbody class="{{ loop.cycle('blue','green','red','yellow','cyan','magenta') }}">
-        {% if car_class in g.class_entry_list %}
-        <tr class="odd">
-          <td colspan="{{(4*g.rules.max_runs) + 7}}">
-            <a name="{{car_class}}" class="anchor"/>
-              {{g.rules.car_class_names[car_class]}}
-          </td>
-        </tr>
         {% for entry in g.class_entry_list[car_class] %}
         <tr class="{{ loop.cycle('even', 'odd') }}">
           <td>{{entry.car_class}}</td>
           <td>{{entry.car_number}}</td>
-          <td class="driver_name">{{entry.alt_name if entry.alt_name else entry.first_name}} {{entry.last_name}}</td>
+          <td class="driver_name">
+            {{entry.alt_name if entry.alt_name else entry.first_name}} {{entry.last_name}}
+            {% if entry.co_driver_id is not none %}
+              / {{g.driver_dict[entry.co_driver_id].alt_name if g.driver_dict[entry.co_driver_id].alt_name else g.driver_dict[entry.co_driver_id].first_name}} {{g.driver_dict[entry.co_driver_id].last_name}}
+            {% endif %}
+          </td>
           <td class="car_info run_border">{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</td>
           {% for run in g.entry_run_list[entry.entry_id] %}
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.raw_time}}</td>
@@ -140,16 +146,17 @@
             <td class="run_border">{{run.total_time}}</td>
             {% endif%}
           {% endfor %}
-          {% for i in range(g.rules.max_runs-entry.scored_runs) %}
+          {% for i in range(g.rules.max_runs-entry.event_runs) %}
           <td class="run_border" colspan=4>&nbsp;</td>
           {% endfor %}
           <td>{{entry.event_penalties if entry.event_penalties}}</td>
           <td>{{entry.event_time if entry.event_time}}</td>
           <td>{{loop.index if entry.event_time}}</td>
+          <td><b>{{'RECALC' if entry.recalc}}</b></td>
         </tr>
         {% endfor %}
-        {% endif %}
       </tbody>
+      {% endif %}
       <tr class="break"></tr>
       {% endfor %}
     </table>

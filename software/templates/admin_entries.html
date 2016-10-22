@@ -44,6 +44,12 @@
           <option disabled>None</option>
         {% endfor %}
       </select></p>
+      <p><label>Co-Driver:</label>*<select name="co_driver_id" required>
+        <option>None</option>
+        {% for driver in g.driver_list %}
+        <option value="{{driver.driver_id}}">{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
+        {% endfor %}
+      </select></p>
       <p><label>Car Year:</label> <input type="text" size=40 name="car_year" /></p>
       <p><label>Car Make:</label> <input type="text" size=40 name="car_make" /></p>
       <p><label>Car Model:</label> <input type="text" size=40 name="car_model" /></p>
@@ -93,6 +99,7 @@
       <th class="nowrap">Class</th>
       <th class="nowrap">Car #</th>
       <th class="nowrap">Driver</th>
+      <th class="nowrap">Co-Driver</th>
       <th class="nowrap">Card #</th>
       <th class="nowrap">Checked In</th>
       <th class="nowrap">Work Assignment</th>
@@ -113,6 +120,7 @@
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
       <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
+      <td class="nowrap">{% if entry.co_driver_id %}<a href="{{url_for('drivers_page')}}#{{entry.co_driver_id}}">{{entry.co_driver_id}}</a>{% endif %}</td>
       <td class="{{'green' if entry.card_number else 'red'}}">{{entry.card_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
       <td>{{entry.work_assignment}}</td>
@@ -129,6 +137,12 @@
             <option value="{{driver.driver_id}}" {{'selected' if entry.driver_id == driver.driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
             {% else %}
               <option disabled>None</option>
+            {% endfor %}
+          </select></p>
+          <p><label>Co-Driver:</label>*<select name="co_driver_id" required>
+            <option>None</option>
+            {% for driver in g.driver_list %}
+            <option value="{{driver.driver_id}}" {{'selected' if entry.co_driver_id == driver.driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
             {% endfor %}
           </select></p>
           <p><label>Car Year:</label> <input type="text" size=40 name="car_year" value="{{entry.car_year if entry.car_year}}" /></p>

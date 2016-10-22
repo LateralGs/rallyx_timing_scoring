@@ -79,7 +79,6 @@
     <table class="latest">
       <tr>
         <th>Class</th>
-        <th>Name</th>
         <th>Car</th>
         <th>Raw</th>
         <th>C</th>
@@ -90,9 +89,8 @@
       <tbody class="blue">
         {% for run in g.latest_runs %}
         <tr class="{{run.class|lower}} {{ loop.cycle('odd', 'even') }}">
-          <td>{{run.car_class}}</td>
-          <td>{{run.first_name}} {{'('+run.alt_name+')' if run.alt_name}} {{run.last_name}}</td>
-          <td>{{run.car_number}}</td>
+          <td>{{g.driver_entry_dict[run.entry_id].car_class}}</td>
+          <td>{{g.driver_entry_dict[run.entry_id].car_number}}</td>
           <td>{{run.raw_time}}</td>
           <td>{{run.cones if run.cones > 0 else '-'}}</td>
           <td>{{run.gates if run.gates > 0 else '-'}}</td>
