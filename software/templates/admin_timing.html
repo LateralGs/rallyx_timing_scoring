@@ -14,7 +14,7 @@
     padding: 4px;
     margin: 4px;
     color: yellow;
-    width: 125px;
+    width: 150px;
   }
   button.green {
     background: green;
@@ -23,7 +23,7 @@
     padding: 4px;
     margin: 4px;
     color: white;
-    width: 125px;
+    width: 150px;
   }
   .run {
     border: 1px dashed gray;
@@ -55,16 +55,21 @@
     width: 10em;
     display: inline-block;
   }
-  .run_reset {
+  .reset_button {
     visibility: hidden;
     padding: 4px;
     width: 100%;
   }
-  .run_save {
+  .save_button {
     font-weight: bold;
     padding: 4px;
     width: 100%;
   }
+
+  .scored_save_button, .finished_save_button, .tossout_save_button {
+    width: 100%;
+  }
+
   .run_print {
     width: 100%;
   }
@@ -107,276 +112,364 @@
     color: #f00;
   }
 
+  ::-webkit-input-placeholder { /* WebKit, Blink, Edge */
+      color:    #333;
+  }
+  :-moz-placeholder { /* Mozilla Firefox 4 to 18 */
+     color:    #333;
+     opacity:  1;
+  }
+  ::-moz-placeholder { /* Mozilla Firefox 19+ */
+     color:    #333;
+     opacity:  1;
+  }
+  :-ms-input-placeholder { /* Internet Explorer 10-11 */
+     color:    #333;
+  }
+
+  :checked+span.red_checked {
+    background-color: red;
+    color: white;
+  }
+
+  span.red_checked {
+    padding: 3px;
+    user-select: none;
+  }
+
 </style>
 <script>
+
+function inc_val(i, v) {
+  var num = parseInt(v);
+  if( isNaN(num) )
+  {
+    return 1;
+  }
+  else
+  {
+    return num+1;
+  }
+}
+
+function dec_val(i, v) {
+  var num = parseInt(v);
+  if( isNaN(num) || num <= 0)
+  {
+    return 0;
+  }
+  else
+  {
+    return num-1;
+  }
+}
+
 $(document).ready(function(){
+  /* Hide reset buttons by default */
   $( "form" ).focusin(function() {
-    //$(this).find(".run_save").css("visibility","visible");
-    $(this).find(".run_reset").css("visibility","visible");
+    $(this).find(".reset_button").css("visibility","visible");
   });
-  $(".run_reset").click(function() {
+  $(".reset_button").click(function() {
     $(this).css("visibility","hidden");
-    //$(this).siblings(".run_save").css("visibility","hidden");
   });
-  $('.submit_save').keypress(function(e){
-    // workaround for DNS being the default submit button when enter is pressed
+
+  /* Forward all enter keypress to save button */
+  $('form').keypress(function(e){
     if ( e.which == 13 ){
-      $(this).parents("form").append("<input type='hidden' name='action' value='update'>")
-      $(this).parents("form").submit()
+      $(this).find('save_button').click()
       return false;
     }
   });
-  $('.scored_save').click(function(){
-    $(this).parent().parent().find('.run_state').val('scored');
+
+  $('.pos_cones_button').click(function() {
+    $(this).closest('form').find('.cones_input').val( inc_val );
   });
-  $('.tossout_save').click(function(){
-    $(this).parent().parent().parent().find('.run_state').val('tossout');
+  $('.pos_gates_button').click(function() {
+    $(this).closest('form').find('.gates_input').val( inc_val );
+  });
+  $('.neg_cones_button').click(function() {
+    $(this).closest('form').find('.cones_input').val( dec_val );
+  });
+  $('.neg_gates_button').click(function() {
+    $(this).closest('form').find('.gates_input').val( dec_val );
+  });
+
+
+  /* Set run state prior to submit */
+  $('.scored_save_button').click(function(){
+    $(this).closest('form').find('.run_state').val('scored');
+  });
+  $('.finished_save_button').click(function(){
+    $(this).closest('form').find('.run_state').val('finished');
+  });
+  $('.tossout_save_button').click(function(){
+    $(this).closest('form').find('.run_state').val('tossout');
+  });
+
+  /* Prevent both DNS and DNF being checked */
+  $('.dns_checkbox').click(function(){
+    $(this).closest('form').find('.dnf_checkbox').prop('checked',false);
+  });
+  $('.dnf_checkbox').click(function(){
+    $(this).closest('form').find('.dns_checkbox').prop('checked',false);
   });
 });
 </script>
 </head>
 <body>
+  <header>
   <h1>Scoring Admin - Timing & Scoring <a href="{{url_for('timing_page')}}">REFRESH</a></h2>
   {% include 'admin_nav.html' %}
   {% include 'flash_message.html' %}
+  </header>
 
-  <table class="layout"><tr><td>
-  <!-- begin left panel -->
+  <div class="layout_box" style="padding-left: 16px; padding-right:16px">
+    <table class="layout">
+      <tr style="font-size: 1.2em">
+        <th>Start</th>
+        <th>Stop</th>
+        <th>Next</th>
+        <th>Max Runs</th>
+        <th>Started</th>
+        <th>Finished</th>
+      </tr>
+      <tr>
 
-    <div class="layout_box" style="white-space: nowrap">
-      <form action="{{url_for('timing_page')}}"  method="POST" >
-        <button class="{{ 'red' if g.disable_start else 'green' }}" type="submit" name="action" value="toggle_start">{{ 'Enable' if g.disable_start else 'Disable'}}<br/>Start</button>
-        <button class="{{ 'red' if g.disable_finish else 'green' }}" type="submit" name="action" value="toggle_finish">{{ 'Enable' if g.disable_finish else 'Disable'}}<br/>Finish</button>
-      </form>
-    </div>
-
-    <div class="layout_box status">
-      <h2>Status</h2>
-      <p><label>Session:</label><b>{{g.race_session}}</b></p>
-      <hr/>
-      <p><label>Start:</label><b>{{'Ready' if g.start_ready else 'DISABLED'}}</b></p>
-      <p><label>Finish:</label><b>{{'Ready' if g.finish_ready else 'DISABLED'}}</b></p>
-      <hr/>
-      {% if not g.hardware_ok %}
-      <p style="color: red"><b>Hardware watchdog timed out!</b></p>
-      <p>Check scoring hardware process.</p>
-      {% else %}
-      <p><label>Tag Heuer 520:</label><b>{{g.tag_heuer_status}}</b></p>
-      <p><label>Barcode Scanner:</label><b>{{g.barcode_scanner_status}}</b></p>
-      <p><label>RFID Reader:</label><b>{{g.rfid_reader_status}}</b></p>
-      {% endif %}
-    </div>
-
-    <div class="layout_box">
-      <h2>Time Events</h2>
-      Last {{g.disp_time_events}} shown
-      <table class="simple">
-        <tr>
-          <th>Channel</th>
-          <th>Time</th>
-          <th>
-            <form action="{{url_for('timing_page')}}"  method="POST">
-            <button type="submit" class="normal" name="action" value="toggle_invalid">{{'Show' if session.hide_invalid_times else 'Hide'}}<br>Invalid</button>
-            </form>
-          </th>
-        </tr>
-        {% for time in g.time_list %}
-        {% if time.channel in ('1','M1','01') and not time.invalid %}
-        {% set color = 'green' %}
-        {% elif time.channel in ('2','M2','02') and not time.invalid %}
-        {% set color = 'red' %}
-        {% else %}
-        {% set color = 'yellow' %}
-        {% endif%}
-        <tbody class="{{color}}">
-          <tr class="even">
-            <td>{{time.channel}}</td>
-            <td>{{time.time_ms|format_time}}</td>
-            <td>{{'INVALID' if time.invalid else ''}}</td>
-          </tr>
-        </tbody>
-        {% else %}
-          <tr><td colspan=4>None</td></tr>
-        {% endfor %}
-      </table>
-    </div>
-
-  <!-- end left panel -->
-  </td><td>
-  <!-- begin right panel -->
-
-    <table class="layout"><tr><td>
-    <div class="layout_box" style="padding-left: 16px; padding-right:16px">
-      {% if g.next_entry_driver %}
-      <h2>Next: {{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}} <span style="color: red">{{g.next_entry_msg if g.next_entry_msg}}</span></h2>
-      <h2>Run: {{g.next_entry_run_count+1}} <span style="color: red">{{'LAST RUN!' if g.next_entry_run_count+1 == g.active_event['max_runs']}}{{'EXTRA RUN!' if g.next_entry_run_count >= g.active_event['max_runs']}}</span></h2>
-      {% else %}
-      <h2>Next: None <span style="color: red">{{g.next_entry_msg if g.next_entry_msg}}</span></h2>
-      <h2>Run:</h2>
-      {% endif %}
-      <form action="{{url_for('timing_page')}}"  method="POST">
-        <select name="next">
-          <option disabled selected>-- Select Entry --</option>
-          {% for entry in g.driver_entry_list %}
-          {% if entry.race_session is none or entry.race_session == '-1' or entry.race_session == g.race_session %}
-          <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
-          <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
-          {% endif %}
-          {% else %}
-          <option disabled>None</option>
-          {% endfor %}
-        </select>
-        <button type="submit" name="action" value="set_next">Set</button>
-        <button type="submit" name="action" value="clear_next">Clear</button>
-      </form>
-    </div>
-    </td><td>
-      <div class="layout_box" style="padding-left: 16px; padding-right:16px">
-      <h2>Started: {{g.cars_started}}</h2>
-      <h2>Finished: {{g.cars_finished}}</h2>
-      <form action="{{url_for('timing_page')}}"  method="POST">
-        <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
-        <input type="hidden" name="state" value="finished" />
-        <button type="submit" name="action" value="insert">Add Blank Run</button>
-      </form>
-      </div>
-    </td><td>
-    <div class="layout_box" style="padding-left: 16px; padding-right:16px">
-      <h2>Max Runs: {{g.active_event.max_runs}}</h2>
-      <h2>Drop Runs: {{g.active_event.drop_runs}}</h2>
-      <form action="{{url_for('timing_page')}}"  method="POST">
-        <select name="max_runs">
-          <option selected disabled>&nbsp;</option>
-          {% for i in range(g.rules.min_runs, 21) %}
-          <option>{{i}}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" name="action" value="set_max_runs">Set Max Runs</button>
-      </form>
-
-    </div>
-    </td></tr></table>
-
-    <div class="layout_box {{'filter_red' if session.entry_filter not in ('all',None)}}">
-      <form action="{{url_for('timing_page')}}"  method="POST">
-      Filter:
-      <select name="entry_filter">
-        <option value="all" {{'selected' if session.entry_filter=='all'}}>All</option>
-        <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
-        <optgroup label="Entries">
-        {% for entry in g.driver_entry_list %}
-        <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}} >{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
-        <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
-        {% else %}
-        <option disabled>None</option>
-        {% endfor %}
-        </optgroup>
-      </select>&nbsp;
-      Limit:
-      <select name="run_limit">
-        {% for i in range(5,101,5) %}
-        <option {{'selected' if session.run_limit == i}}>{{i}}</option>
-        {% endfor %}
-      </select>&nbsp;&nbsp;
-      <label><input type="checkbox" name="started_filter" {{'checked' if session.started_filter}} />Started</label>
-      <label><input type="checkbox" name="finished_filter" {{'checked' if session.finished_filter}} />Finished</label>
-      <label><input type="checkbox" name="scored_filter" {{'checked' if session.scored_filter}} />Scored</label>
-      <label><input type="checkbox" name="tossout_filter" {{'checked' if session.tossout_filter}} />TossOut</label>&nbsp;&nbsp;
-      <button type="submit" name="action" value="set_filter">Set Filter</button>
-      <button type="submit" name="action" value="reset_filter">Clear Filter</button>
-      </form>
-    </div>
-    <div class="layout_box">
-      {% for run in g.run_list %}
-      <a name="{{run.run_id}}" />
-        <div class="run {{run.state}}" id="{{run.run_id}}">
-        <form action="{{url_for('timing_page')}}"  method="POST">
-          <input type="hidden" name="run_id" value="{{run.run_id}}" />
-          <input type="hidden" name="old_state" value="{{run.state}}" />
-          <input type="hidden" name="old_entry_id" value="{{run.entry_id}}" />
-          <table class="layout">
-            <tr>
-            <!-- START FIRST ROW -->
-              <td class="nowrap">
-                <label class="start_flag" title="Start">&#9873;</label>&nbsp;<input title="Start" type="text" class="start_time submit_save" name="start_time" pattern="\s*((\s)|(DNS)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.start_time_ms|format_time('DNS')}}" size="12" title="[[HH:]MM:]SS.sss or DNS" {{'disabled' if run.state != 'started' and run.finish_time_ms == 0}} />
-                <!--<input type="button" value="DNS" class="run_dns"/>&nbsp;-->
-                <button type="submit" name="action" value="dns">DNS</button>&nbsp;
-              </td>
-              <td class="nowrap">
-                <label class="finish_flag" title="Finish">&#9873;</label>&nbsp;<input title="Finish" type="text" class="finish_time submit_save" name="finish_time" pattern="\s*((\s)|(DNF)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.finish_time_ms|format_time('DNF') if run.state != 'started'}}" size="12" title="[[HH:]MM:]SS.sss or DNF" {{'disabled' if run.state == 'started' or run.start_time_ms == 0}} />
-                <!--<input type="button" value="DNF" class="run_dnf" {{'disabled' if run.state == 'started'}} />&nbsp;-->
-                <button type="submit" name="action" value="dnf">DNF</button>&nbsp;
-              </td>
-              <td><input type="text" size="4" value="{{run.run_count if run.run_count}}" disabled /></td>
-              <td><input type="text" size="14" value="{{run.raw_time if run.raw_time}}" disabled /></td>
-              <td><input type="number" class="submit_save" min="0" max="100" name="cones" value="{{run.cones if run.cones}}" /></td>
-              <td><input type="number" class="submit_save" min="0" max="100" name="gates" value="{{run.gates if run.gates}}" /></td>
-              <td><input type="text" size="14" value="{{run.total_time if run.total_time}}" disabled /></td>
-              <td>
-                <select class="run_state submit_save" name="state">
-                  <option value="started" {{'selected' if run.state == 'started'}}>Started</option>
-                  <option value="finished" {{'selected' if run.state == 'finished'}}>Finished</option>
-                  <option value="scored" {{'selected' if run.state == 'scored'}} {{'disabled' if run.state =='started'}}>Scored</option>
-                  <option value="tossout" {{'selected' if run.state == 'tossout'}}>Toss Out</option>
-                </select>
-              </td>
-              <td>
-                <button type="submit" class="run_save" name="action" value="update">Save</button>
-              </td>
-              <td>
-                <button type="submit" class="scored_save" name="action" value="update">Scored & Save</button>
-              </td>
-              
-            <!-- END FIRST ROW -->
-            </tr><tr>
-            <!-- START SECOND ROW -->
-              <td class="nowrap" style="text-align: left">
-                <label title="Split 1">S1:</label><input title="Split 1" type="text" class="split_time submit_save" name="split_1" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.split_1_time_ms|format_time('')}}" size="12" title="[[HH:]MM:]SS.sss" {{'disabled' if run.state == 'started' or run.start_time_ms == 0 or run.finish_time_ms == 0}} />
-              </td>
-              <td class="nowrap" style="text-align: left">
-                <label title="Split 2">S2:</label><input title="Split 2" type="text" class="split_time submit_save" name="split_2" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+\.[0-9]+))\s*" value="{{run.split_2_time_ms|format_time('')}}" size="12" title="[[HH:]MM:]SS.sss" {{'disabled' if run.state == 'started' or run.start_time_ms == 0 or run.finish_time_ms == 0}} />
-              </td>
-              <td class="center">Run</td>
-              <td class="center">Raw</td>
-              <td class="center">Cones</td>
-              <td class="center">Gates</td>
-              <td class="center">Total</td>
-              <td class="center">State</td>
-              <td>[{{run.run_id}}]</td>
-              <!--<td><button type="submit" class="run_save_print" name="action" value="update_print">Save & Print</button></td>-->
-              
-            <!-- END SECOND ROW -->
-            </tr><tr>
-            <!-- START THIRD ROW -->
-
-              <td colspan="2">
-                <select name="entry_id" class="entry_select">
-                  <option disabled selected>-- Select Entry --</option>
-                  <option disabled></option>
-                  <option>-- None --</option>
-                  <option disabled></option>
-                  {% for entry in g.driver_entry_list %}
-                  <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
-                  <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
-                  {% endfor %}
-                </select>
-              </td>
-              <td style="text-align: left;" colspan=6>&nbsp;Note:<input type="text" class="left submit_save" name="run_note" style="width:80%" value="{{run.run_note if run.run_note}}" placeholder="{{g.car_dict[run.entry_id]}}" /></td>
-              <td><button type="reset" class="run_reset" tabindex=1>Reset</button></td>
-              <td>
-                <button type="submit" class="tossout_save" name="action" value="update">Tossout & Save</button>
-              </td>
-
-            <!-- END THIRD ROW -->
-            </tr>
-          </table>
+        <td>
+        <form action="{{url_for('timing_page')}}"  method="POST" >
+          <button class="{{ 'red' if g.disable_start else 'green' }}" type="submit" name="action" value="toggle_start">{{ 'Disabled' if g.disable_start else 'Enabled'}}</button>
         </form>
-      </div>
+        </td>
+        <td style="padding-right: 16px; padding-left: 16px;">
+          <form action="{{url_for('timing_page')}}"  method="POST" >
+            <button class="{{ 'red' if g.disable_finish else 'green' }}" type="submit" name="action" value="toggle_finish">{{ 'Disabled' if g.disable_finish else 'Enabled'}}</button>
+          </form>
+        </td>
+        <td style="border-left: 1px solid gray; padding-left: 32px; padding-right: 32px;">
+          <form action="{{url_for('timing_page')}}"  method="POST">
+            <select name="next">
+              <option disabled selected>-- Select Entry --</option>
+              {% for entry in g.driver_entry_list %}
+              {% if entry.race_session is none or entry.race_session == '-1' or entry.race_session == g.race_session %}
+              <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+              <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
+              {% endif %}
+              {% else %}
+              <option disabled>None</option>
+              {% endfor %}
+            </select><br>
+            <button type="submit" name="action" value="set_next" style="width: 45%">Set</button>
+            <button type="submit" name="action" value="clear_next" style="width: 45%">Clear</button>
+          </form>
+        </td>
+        <td style="border-left: 1px solid gray; padding-left: 32px; padding-right: 32px;">
+          <form action="{{url_for('timing_page')}}"  method="POST">
+            <select name="max_runs">
+              {% for i in range(g.rules.min_runs, 21) %}
+              <option {{'selected' if i == g.rules.max_runs}}>{{i}}</option>
+              {% endfor %}
+            </select><br>
+            <button type="submit" name="action" value="set_max_runs" style="width: 90%">Set</button>
+          </form>
+        </td>
+        <td style="border-left: 1px solid gray; padding-left: 32px; padding-right: 32px;">
+          <input type="text" size=5 disabled value="{{g.cars_started}}" style="text-align: center"><br>
+          <form action="{{url_for('timing_page')}}"  method="POST">
+            <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
+            <input type="hidden" name="state" value="finished" />
+            <button type="submit" name="action" value="insert">Add Run</button>
+          </form>
+        </td>
+        <td style="border-left: 1px solid gray; padding-left: 32px; padding-right: 32px;">
+          <input type="text" size=5 disabled value="{{g.cars_finished}}" style="text-align: center">
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="layout_box" style="padding-left: 16px; padding-right:16px">
+    <table class="layout">
+      <tr style="font-size: 1.2em">
+        <th>Entry</th>
+        <th>Car</th>
+        <th style="padding-right: 32px">Run</th>
+        <th class="nowrap">Current Session</th>
+      </tr>
+      <tr>
+        <td class="nowrap">
+          <input type="text" size=45 disabled value="{{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}}" style="text-align: center">
+          <br><span style="color: red; font-size: 1.1em; font-weight: bold">&nbsp;{{g.next_entry_msg if g.next_entry_msg}}</span>
+        </td>
+        <td class="nowrap">
+          <input type="text" size=45 disabled value="{{g.next_entry_driver.car_color}} {{g.next_entry_driver.car_year}} {{g.next_entry_driver.car_make}} {{g.next_entry_driver.car_model}}" style="text-align: center">
+        </td>
+        <td class="nowrap" style="padding-right: 32px">
+          <input type="text" size=7 disabled value="{{g.next_entry_run_number if g.next_entry_run_number}}" style="text-align: center">
+          <br><span style="color: red; font-size: 1.1em; font-weight: bold">&nbsp;{{'LAST RUN!' if g.next_entry_run_number == g.event['max_runs']}}{{'EXTRA RUN!' if g.next_entry_run_number > g.event['max_runs']}} </span>
+        </td>
+        <td style="border-left: 1px solid gray; padding-left: 64px; padding-right: 64px;">
+          <input type="text" size=5 disabled value="{{g.race_session}}" style="text-align: center">
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div id="filter" class="layout_box {{'filter_red' if session.entry_filter not in ('all',None)}}">
+    <form action="{{url_for('timing_page')}}"  method="POST">
+    Filter:
+    <select name="entry_filter">
+      <option value="all" {{'selected' if session.entry_filter=='all'}}>All</option>
+      <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
+      <optgroup label="Entries">
+      {% for entry in g.driver_entry_list %}
+      <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}} >{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+      <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
+      {% else %}
+      <option disabled>None</option>
       {% endfor %}
-      <div><i>Change filter to view runs not listed.</i></div>
+      </optgroup>
+    </select>&nbsp;
+    Limit:
+    <select name="run_limit">
+      {% for i in range(5,101,5) %}
+      <option {{'selected' if session.run_limit == i}}>{{i}}</option>
+      {% endfor %}
+    </select>&nbsp;&nbsp;
+    <label><input type="checkbox" name="started_filter" {{'checked' if session.started_filter}} />Started</label>
+    <label><input type="checkbox" name="finished_filter" {{'checked' if session.finished_filter}} />Finished</label>
+    <label><input type="checkbox" name="scored_filter" {{'checked' if session.scored_filter}} />Scored</label>
+    <label><input type="checkbox" name="tossout_filter" {{'checked' if session.tossout_filter}} />TossOut</label>&nbsp;&nbsp;
+    <button type="submit" name="action" value="set_filter">Set Filter</button>
+    <button type="submit" name="action" value="reset_filter">Clear Filter</button>
+    </form>
+  </div>
+
+
+  <div id="runs" class="layout_box">
+    {% for run in g.run_list %}
+    <a name="{{run.run_id}}" />
+      <div class="run {{run.state}}" id="{{run.run_id}}">
+      <form class="run_form" action="{{url_for('timing_page')}}"  method="POST">
+        <input type="hidden" name="run_id" value="{{run.run_id}}" />
+        <input type="hidden" name="old_state" value="{{run.state}}" />
+        <input type="hidden" name="old_entry_id" value="{{run.entry_id}}" />
+        <table class="layout">
+          <tr>
+          <!-- START FIRST ROW -->
+            <td rowspan=3 style="padding: 16px; text-align: center; font-size: 3em;">
+              {% if run.state == 'started' %}
+              S
+              {% elif run.state == 'finished' %}
+              F
+              {% elif run.state == 'scored' %}
+              &checkmark;
+              {% else %}
+              &cross;
+              {% endif %}
+            </td>
+
+            <th>Start</th>
+            <th>Split 1</th>
+            <th>Split 2</th>
+            <th>Finish</th>
+            <th>Run</th>
+            <th>Raw</th>
+            <th>Cones</th>
+            <th>Gates</th>
+            <th>Total</th>
+            <th>State</th>
+            <th></th>
+            <th style="padding-left: 16px">Change & Save</th>
+
+          <!-- END FIRST ROW -->
+          </tr><tr>
+          <!-- START SECOND ROW -->
+            <td class="nowrap">
+              <input type="text" class="start_time" name="start_time" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+(\.[0-9]*)?))\s*" value="{{run.start_time_ms|format_time}}" size="12" title="[[HH:]MM:]SS.sss" />
+            </td>
+            <td class="nowrap" style="text-align: left">
+              <input type="text" class="split_time" name="split_1_time" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+(\.[0-9]*)?))\s*" value="{{run.split_1_time_ms|format_time}}" size="12" title="[[HH:]MM:]SS.sss" />
+            </td>
+            <td class="nowrap" style="text-align: left">
+              <input type="text" class="split_time" name="split_2_time" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+(\.[0-9]*)?))\s*" value="{{run.split_2_time_ms|format_time}}" size="12" title="[[HH:]MM:]SS.sss" />
+            </td>
+            <td class="nowrap">
+              <input type="text" class="finish_time" name="finish_time" pattern="\s*((\s)|((([0-9]+:)?[0-9]+:)?[0-9]+(\.[0-9]*)?))\s*" value="{{run.finish_time_ms|format_time if run.state != 'started'}}" size="12" title="[[HH:]MM:]SS.sss" {{'disabled' if run.state == 'started'}} />
+            </td>
+            <td><input type="text" size="4" value="{{run.run_number if run.run_number}}" disabled /></td>
+            <td><input type="text" class="raw_time" size="14" value="{{run.raw_time if run.raw_time}}" disabled /></td>
+            <td><input type="number" class="cones_input" min="0" max="100" name="cones" value="{{run.cones if run.cones}}" /></td>
+            <td><input type="number" class="gates_input" min="0" max="100" name="gates" value="{{run.gates if run.gates}}" /></td>
+            <td><input type="text" class="total_time" size="14" value="{{run.total_time if run.total_time}}" disabled /></td>
+            <td>
+              <select class="run_state" name="state">
+                <option value="started" {{'selected' if run.state == 'started'}}>Started</option>
+                <option value="finished" {{'selected' if run.state == 'finished'}}>Finished</option>
+                <option value="scored" {{'selected' if run.state == 'scored'}} {{'disabled' if run.state =='started'}}>Scored</option>
+                <option value="tossout" {{'selected' if run.state == 'tossout'}}>Toss Out</option>
+              </select>
+            </td>
+            <td style="border-right: 1px solid black; padding-right: 16px"></td>
+            <td style="border-left: 1px solid black; padding-left: 16px">
+              <button type="submit" class="scored_save_button" name="action" value="update" {{'disabled' if run.state == 'started'}}>Scored</button>
+            </td>
+            
+            
+            <!--<td><button type="submit" class="run_save_print" name="action" value="update_print">Save & Print</button></td>-->
+            
+          <!-- END SECOND ROW -->
+          </tr><tr>
+          <!-- START THIRD ROW -->
+
+            <td colspan="4">
+              <select name="entry_id" class="entry_select">
+                <option disabled selected>-- Select Entry --</option>
+                <option disabled></option>
+                <option value="">-- None --</option>
+                <option disabled></option>
+                {% for entry in g.driver_entry_list %}
+                <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+                <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
+                {% endfor %}
+              </select>
+            </td>
+            <td><label style="font-size: 1.2em"><input type="checkbox" class="dns_checkbox" name="dns_dnf" value=1 {{'checked' if run.dns_dnf == 1}}><span class="red_checked">DNS</span></label></td>
+            <td><!--<button style="width: 80%" class="false_start_button">False Start</button>--></td>
+            <td><button type="button" style="width: 80%; font-weight: bold" class="pos_cones_button">+</button></td>
+            <td><button type="button" style="width: 80%; font-weight: bold" class="pos_gates_button">+</button></td>
+            <td></td>
+            <td><button type="reset" class="reset_button" tabindex=1>Reset</button></td>
+            <td style="border-right: 1px solid black; padding-right: 16px"></td>
+            <td style="border-left: 1px solid black; padding-left: 16px">
+              <button type="submit" class="finished_save_button" name="action" value="update">Finished</button>
+            </td>
+          <!-- END THIRD ROW -->
+          </tr>
+          <tr>
+          <!-- START FOURTH ROW -->
+            <td>[{{run.run_id}}]</td>
+            <td style="text-align: left;" colspan=4><input type="text" class="left" name="run_note" style="width:98%" value="{{run.run_note if run.run_note}}" placeholder="{{g.car_dict[run.entry_id]}}" /></td>
+
+            <td><label style="font-size: 1.2em"><input type="checkbox" class="dnf_checkbox" name="dns_dnf" value=2 {{'checked' if run.dns_dnf > 1}}><span class="red_checked">DNF</span></label></td>
+            <td><!--<button style="width: 80%" class="false_start_button">False Finish</button>--></td>
+            <td><button type="button" style="width: 80%; font-weight: bold" class="neg_cones_button">-</button></td>
+            <td><button type="button" style="width: 80%; font-weight: bold" class="neg_gates_button">-</button></td>
+            <td></td>
+            <td>
+              <button type="submit" class="save_button" name="action" value="update">Save</button>
+            </td>
+            <td style="border-right: 1px solid black; padding-right: 16px"></td>
+            <td style="border-left: 1px solid black; padding-left: 16px">
+              <button type="submit" class="tossout_save_button" name="action" value="update">Toss Out</button>
+            </td>
+          <!-- END FOURTH ROW -->
+          </tr>
+        </table>
+      </form>
     </div>
-  <!-- end right panel -->
-  </td></tr></table>
+    {% endfor %}
+    <div><i>Change filter to view runs not listed.</i></div>
+  </div>
 </body>
 </html>
 

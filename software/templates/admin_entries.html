@@ -35,7 +35,7 @@
   <div>
     <h2>Add entry to current event</h2>
     <form action="{{url_for('entries_page')}}" method='POST'>
-      <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
+      <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
       <p><label>Driver:</label>*<select name="driver_id" required>
         <option selected disabled>-- Select Driver --</option>
         {% for driver in g.driver_list %}
@@ -44,12 +44,7 @@
           <option disabled>None</option>
         {% endfor %}
       </select></p>
-      <p><label>Co-Driver:</label>*<select name="co_driver_id" required>
-        <option>None</option>
-        {% for driver in g.driver_list %}
-        <option value="{{driver.driver_id}}">{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
-        {% endfor %}
-      </select></p>
+      <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" /></p>
       <p><label>Car Year:</label> <input type="text" size=40 name="car_year" /></p>
       <p><label>Car Make:</label> <input type="text" size=40 name="car_make" /></p>
       <p><label>Car Model:</label> <input type="text" size=40 name="car_model" /></p>
@@ -82,14 +77,16 @@
       <p><label><b>* = required</b></label> <button type="submit" name="action" value="insert">Add Entry</button></p>
     </form>
   </div>
+  <!--
   <hr/>
   <div>
     <h2>Entry Check In</h2>
     <form action="{{url_for('entries_page')}}" method='POST'>
-      <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
-      <p><label>Card #:</label> <input type="number" min="0" max="9999999999" size=40 name="card_number" autofocus /> <button type="submit" name="action" value="card_check_in">Check In</button></p>
+      <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
+      <p><label>Tracking #:</label> <input type="number" min="0" max="9999999999" size=40 name="tracking_number" autofocus /> <button type="submit" name="action" value="card_check_in">Check In</button></p>
     </form>
   </div>
+  -->
 
   <hr/>
   <h2>Entry List ({{g.driver_entry_list|length}})</h2>
@@ -100,7 +97,7 @@
       <th class="nowrap">Car #</th>
       <th class="nowrap">Driver</th>
       <th class="nowrap">Co-Driver</th>
-      <th class="nowrap">Card #</th>
+      <th class="nowrap">Tracking #</th>
       <th class="nowrap">Checked In</th>
       <th class="nowrap">Work Assignment</th>
       <th class="nowrap">Race Session</th>
@@ -120,8 +117,8 @@
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
       <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
-      <td class="nowrap">{% if entry.co_driver_id %}<a href="{{url_for('drivers_page')}}#{{entry.co_driver_id}}">{{entry.co_driver_id}}</a>{% endif %}</td>
-      <td class="{{'green' if entry.card_number else 'red'}}">{{entry.card_number}}</td>
+      <td class="nowrap">{{entry.co_driver}}</td>
+      <td class="{{'green' if entry.tracking_number else 'red'}}">{{entry.tracking_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
       <td>{{entry.work_assignment}}</td>
       <td>{{'Any' if entry.race_session == '-1' or entry.race_session is none else entry.race_session}}</td>
@@ -139,12 +136,7 @@
               <option disabled>None</option>
             {% endfor %}
           </select></p>
-          <p><label>Co-Driver:</label>*<select name="co_driver_id" required>
-            <option>None</option>
-            {% for driver in g.driver_list %}
-            <option value="{{driver.driver_id}}" {{'selected' if entry.co_driver_id == driver.driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
-            {% endfor %}
-          </select></p>
+          <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" value="{{entry.co_driver if entry.co_driver}}" /></p>
           <p><label>Car Year:</label> <input type="text" size=40 name="car_year" value="{{entry.car_year if entry.car_year}}" /></p>
           <p><label>Car Make:</label> <input type="text" size=40 name="car_make" value="{{entry.car_make if entry.car_make}}" /></p>
           <p><label>Car Model:</label> <input type="text" size=40 name="car_model" value="{{entry.car_model if entry.car_model}}" /></p>

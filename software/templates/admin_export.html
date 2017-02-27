@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
+  
+  tr:target {
+    background: #ffb;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Export Scores</h2>
+  {% include "admin_nav.html" %}
+  {% include "flash_message.html" %}
+
+  <h3>Export types:</h3>
+
+  <ul>
+    <li><a href="{{url_for('export_scores_page')}}">Scores in CSV format</a></li>
+  </ul>
+  
+</body>
+</html>
+

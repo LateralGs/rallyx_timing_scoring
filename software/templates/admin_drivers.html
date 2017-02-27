@@ -48,7 +48,7 @@
       <p><label>Phone:</label> <input type="text" size=40 name="phone" /></p>
       <p><label>Email:</label> <input type="text" size=40 name="email" /></p>
       
-      <p><label>Card #:</label> <input type="number" min="0" max="9999999999" size=40 name="card_number" /> <b>&lt;- Don't forget this!</b></p>
+      <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
 
       <p><label>Note:</label> <input type="text" size=40 name="driver_note" /></p>
       <br/>
@@ -63,7 +63,7 @@
       <th class="nowrap">Driver</th>
       <th class="nowrap">First Name (alt)</th>
       <th class="nowrap">Last Name</th>
-      <th class="nowrap">Card #</th>
+      <th class="nowrap">Tracking #</th>
       <th class="nowrap">Note</th>
     </tr>
     <tr class="break"></tr>
@@ -73,7 +73,7 @@
       <td><button onclick='$("#edit_{{driver.driver_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{driver.driver_id}}").offset().top});'>Edit</button></td>
       <td class="nowrap">{{driver.first_name if driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}}</td>
       <td class="nowrap">{{driver.last_name if driver.last_name}}</td>
-      <td class="nowrap {{'green' if driver.card_number else 'red'}}">{{driver.card_number if driver.card_number}}</td>
+      <td class="nowrap {{'green' if driver.tracking_number else 'red'}}">{{driver.tracking_number if driver.tracking_number}}</td>
       <td style="text-align: left">{{driver.driver_note if driver.driver_note}}</td>
     </tr>
     <tr id="edit_{{driver.driver_id}}" style="display: none">
@@ -93,7 +93,7 @@
           <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" value="{{driver.addr_zip if driver.addr_zip}}" /></p>
           <p><label>Phone:</label> <input type="text" size=40 name="phone" value="{{driver.phone if driver.phone}}" /></p>
           <p><label>Email:</label> <input type="text" size=40 name="email" value="{{driver.email if driver.email}}" /></p>
-          <p><label>Card #:</label> <input type="number" min="0" max="9999999999" size=40 name="card_number" value="{{driver.card_number if driver.card_number}}" /> <b>&lt;- Don't forget this!</b></p>
+          <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" value="{{driver.tracking_number if driver.tracking_number}}" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
           <p><label>Note:</label> <input type="text" size=40 name="driver_note" value="{{driver.driver_note if driver.driver_note}}" /></p>
           <hr/>
           <button type="submit" name="action" value="update">Save Changes</button> -

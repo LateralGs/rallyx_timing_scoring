@@ -6,8 +6,9 @@ import types
 #######################################
 
 # this number should match the schema_versions/version_NNN.sql file name used to init the db
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
+# used as global storage for table column names
 columns = {}
 
 #######################################

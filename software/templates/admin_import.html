@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
+  
+  tr:target {
+    background: #ffb;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Import Entries</h2>
+  {% include "admin_nav.html" %}
+  {% include "flash_message.html" %}
+
+  <h2>Instructions</h2>
+
+  This page allows the importing of data exported from motorsportreg.com in csv format.  Using the report functionality on msreg export the data for an event to a csv file with the following columns.
+
+  <ul>
+    <li><b>Required</b>
+      <ul>
+        <li>Unique ID</li>
+        <li>Class</li>
+        <li>No.</li>
+        <li>Last Name</li>
+        <li>First Name</li>
+        <li>Color</li>
+        <li>Year</li>
+        <li>Make</li>
+        <li>Model</li>
+        <li>Status</li>
+      </ul>
+    </li>
+    <li><b>Optional</b>
+      <ul>
+        <li>Co-Drivers</li>
+        <li>Member #</li>
+        <li>Segment Name</li>
+      </ul>
+    </li>
+  </ul>
+
+  <p>Notes:<p>
+  <ul>
+    <li>Additional fields are safe to include and will be ignored.</li>
+    <li>The CSV file needs to have the first row contain the header names for the columns.</li>
+    <li>Column order does not matter.  Header row allows for column identification.</li>
+  </ul>
+
+  <hr>
+
+  <form action="{{url_for('import_page')}}"  method="POST" enctype="multipart/form-data" >
+    <input type="file" name="upload_file" accept=".csv" />
+    <input type="submit" name="action" value="upload" />
+  </form>
+
+  <hr>
+
+  <ul>
+  {% with messages = get_flashed_messages(category_filter='inline') %}
+  {% for msg in messages %}
+  <li>{{msg}}</li>
+  {% endfor %}
+  {% endwith %}
+  </ul>
+
+</body>
+</html>
+

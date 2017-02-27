@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
+  
+  tr:target {
+    background: #ffb;
+  }
+</style>
+</head>
+<body>
+  <h1>Scoring Admin - Timer Data</h2>
+  {% include "admin_nav.html" %}
+  {% include "flash_message.html" %}
+
+  <h3>Legend:</h3>
+  <ul>
+    <li>Channel 1 - Start</li>
+    <li>Channel 2 - Finish</li>
+    <li>Channel 3 - Split 1</li>
+    <li>Channel 4 - Split 2</li>
+  </ul>
+
+  <p><b>Note: Times listed as invalid are timer events that were not automatically assigned to a run.</b></p><br>
+
+  Last {{g.timer_data_count}} shown
+  <table class="simple">
+    <tr>
+      <th>Channel</th>
+      <th>Time</th>
+      <th>Invalid</th>
+    </tr>
+    {% for time in g.time_list %}
+    {% if time.channel in ('1','M1','01') and not time.invalid %}
+    {% set color = 'green' %}
+    {% elif time.channel in ('2','M2','02') and not time.invalid %}
+    {% set color = 'red' %}
+    {% elif time.channel in ('3','M3','03') and not time.invalid %}
+    {% set color = 'blue' %}
+    {% elif time.channel in ('3','M3','03') and not time.invalid %}
+    {% set color = 'magenta' %}
+    {% else %}
+    {% set color = 'yellow' %}
+    {% endif%}
+    <tbody class="{{color}}">
+      <tr class="even">
+        <td>{{time.channel}}</td>
+        <td>{{time.time_ms|format_time}}</td>
+        <td>{{'INVALID' if time.invalid else ''}}</td>
+      </tr>
+    </tbody>
+    {% else %}
+      <tr><td colspan=4>None</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
+

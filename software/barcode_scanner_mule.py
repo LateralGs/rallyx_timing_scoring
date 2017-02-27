@@ -20,17 +20,11 @@ DB_POLL_INTERVAL = 3
 def get_db():
   return ScoringDatabase(config.SCORING_DB_PATH)
 
-def get_rules(db=None):
-  rules = config.SCORING_RULES_CLASS()
-  if db:
-    rules.sync(db)
-  return rules
-
 #######################################
 
 def handle_next_entry(db, data):
   try:
-    card_number = int(data)
+    tracking_number = int(data)
   except ValueError:
     log.warning("Invalid card number")
     play_sound('sounds/OutputFailure.wav')
@@ -38,7 +32,7 @@ def handle_next_entry(db, data):
 
   race_session = db.reg_get('race_session')
   active_event_id = db.reg_get('active_event_id')
-  entry_list = db.query_all("SELECT entry_id, race_session FROM entries WHERE event_id=? AND card_number=?", (active_event_id, card_number))
+  entry_list = db.query_all("SELECT entry_id, race_session FROM entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
 
   if entry_list is None or len(entry_list) == 0:
     log.warning("No entry_id found")

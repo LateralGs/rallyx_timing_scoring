@@ -54,8 +54,6 @@ def parse_time_ex(time_str):
   time_str = time_str.strip()
   if time_str == '':
     return None
-  if time_str.lower() in ('dnf', 'dns'):
-    return 0
   match = re.match(r"^(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d{0,3}))?$", time_str)
   if match:
     h, m, s, ms = match.groups()
@@ -87,29 +85,32 @@ def parse_time_ex(time_str):
 
 #######################################
 
-def format_time(time_ms, dnf_str='DNF',hms=True):
+def format_time(time_ms, hms=True):
+  prefix = ''
+
   if isinstance(time_ms, types.StringTypes):
     time_ms = parse_int(time_ms, None)
 
   if time_ms is None:
     return ""
-  elif time_ms == 0:
-    return dnf_str
-  elif time_ms < 0:
-    return "NEG"
-  elif hms:
+
+  if time_ms < 0:
+    time_ms = -time_ms
+    prefix = '-'
+  
+  if hms:
     ms = time_ms % 1000
     s = (time_ms / 1000) % 60
     m = (time_ms / (60 * 1000)) % 60
     h = time_ms / (60 * 60 * 1000)
     if h > 0:
-      return "%d:%02d:%02d.%03d" % (h,m,s,ms)
+      return "%s%d:%02d:%02d.%03d" % (prefix,h,m,s,ms)
     elif m > 0:
-      return "%d:%02d.%03d" % (m,s,ms)
+      return "%s%d:%02d.%03d" % (prefix,m,s,ms)
     else:
-      return "%d.%03d" % (s,ms)
+      return "%s%d.%03d" % (prefix,s,ms)
   else:
-    return "%d.%03d" % (time_ms / 1000, time_ms % 1000)
+    return "%s%d.%03d" % (prefix, time_ms / 1000, time_ms % 1000)
 
 #######################################
 
@@ -142,11 +143,11 @@ def clean_str(s):
 
 def time_cmp(a,b):
   util_log.debug("cmp: %r, %r", a, b)
-  if a in (0,None) and b in (0,None):
+  if a is None and b is None:
     return 0
-  elif a in (0,None):
+  elif a is None:
     return 1
-  elif b in (0,None):
+  elif b is None:
     return -1
   elif a < b:
     return -1

@@ -13,6 +13,7 @@ from sql_db import ScoringDatabase
 from time import time
 import datetime
 import markdown
+import scoring_rules
 
 #######################################
 
@@ -55,37 +56,49 @@ def get_db():
     db = g._database = ScoringDatabase(config.SCORING_DB_PATH)
   return db
 
-def get_rules(db):
-  rules = getattr(g, '_rules', None)
-  if rules is None:
-    rules = g._rules = config.SCORING_RULES_CLASS()
-  rules.sync(db)
-  return rules
-
 @app.teardown_appcontext
 def close_db(exception):
   db = getattr(g, '_database', None)
   if db is not None:
     db.close()
 
+def get_event(db):
+  active_event_id = db.reg_get('active_event_id')
+  if db.event_exists(active_event_id):
+    return db.select_one('events', event_id=active_event_id)
+
+
+def get_rules(event):
+  if event is None:
+    return None
+  rule_sets = scoring_rules.get_rule_sets()
+  if event['rule_set'] in rule_sets:
+    rules = rule_sets[event['rule_set']]()
+    if event['max_runs'] is not None:
+      rules.max_runs = event['max_runs']
+    if event['drop_runs'] is not None:
+      rules.drop_runs = event['drop_runs']
+    return rules
+  else:
+    return None
+
 #######################################
 
 @app.route('/')
 def index_page():
   db = get_db()
-  g.rules = get_rules(db)
+  g.event = get_event(db)
+  g.rules = get_rules(event)
   
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.select_one('events', event_id=g.active_event_id)
-  if g.active_event is None:
+  if g.event is None:
     return "No active event."
 
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
 
   g.class_entry_list = {}
-  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
   for entry in g.driver_entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
@@ -114,20 +127,19 @@ def index_page():
 @app.route('/finish')
 def finish_page():
   db = get_db()
-  g.rules = get_rules(db)
+  g.event = get_event(db)
+  g.rules = get_rules(event)
   
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.select_one('events', event_id=g.active_event_id)
-  if g.active_event is None:
+  if g.event is None:
     return "No active event."
 
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
 
   g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
 
-  g.latest_runs = db.run_list(event_id=g.active_event_id, state="scored", limit=10, sort='D')
+  g.latest_runs = db.run_list(event_id=g.event['event_id'], state="scored", limit=10, sort='D')
 
   g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
   
@@ -142,10 +154,10 @@ def finish_page():
 @app.route('/sectors')
 def sectors_page():
   db = get_db()
-  g.rules = get_rule(db)
-  g.active_event_id = db.reg_get_int('active_event_id')
-
-  if g.active_event_id is None:
+  g.event = get_event(db)
+  g.rules = get_rules(event)
+  
+  if g.event is None:
     return "No active event."
 
   return render_template('scoreboard_sectors.html')
@@ -154,20 +166,19 @@ def sectors_page():
 @app.route('/penalties')
 def penalties_page():
   db = get_db()
-  g.rules = get_rule(db)
-
-  g.active_event_id = db.reg_get_int('active_event_id')
-  g.active_event = db.select_one('events', event_id=g.active_event_id)
-  if g.active_event is None:
+  g.event = get_event(db)
+  g.rules = get_rules(event)
+  
+  if g.event is None:
     return "No active event."
 
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.driver_entry_list = db.driver_entry_list(g.active_event_id)
+  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
 
   g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
 
-  g.penalty_list = db.select_all('penalties', event_id=g.active_event_id)
+  g.penalty_list = db.select_all('penalties', event_id=g.event['event_id'])
 
   return render_template('scoreboard_penalties.html')
 

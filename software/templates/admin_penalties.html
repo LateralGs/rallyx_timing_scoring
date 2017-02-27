@@ -32,6 +32,8 @@
   {% include "admin_nav.html" %}
   {% include "flash_message.html" %}
 
+  <h3>These penalties add to the event total regardless of scored runs</h3>
+  <hr/>
   <div>
     <h2>Add penalty</h2>
     <form action="{{url_for('penalties_page')}}" method='POST'>

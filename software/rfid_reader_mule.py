@@ -22,26 +22,22 @@ REPEAT_INTERVAL = 3
 def get_db():
   return ScoringDatabase(config.SCORING_DB_PATH)
 
-def get_rules(db=None):
-  rules = config.SCORING_RULES_CLASS()
-  if db:
-    rules.sync(db)
-  return rules
-
 #######################################
 
 def handle_next_entry(db, data):
   try:
-    card_number = int(data)
+    tracking_number = int(data)
   except ValueError:
-    logging.warning("Invalid card number")
+    logging.warning("Invalid tracking number")
     play_sound('sounds/OutputFailure.wav')
     return
 
   race_session = db.reg_get('race_session')
   active_event_id = db.reg_get('active_event_id')
-  entry_list = db.query_all("SELECT entry_id, race_session FROM driver_entries WHERE event_id=? AND card_number=?", (active_event_id, card_number))
+  entry_list = db.query_all("SELECT entry_id, race_session FROM driver_entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
   next_entry_id = None
+
+  logging.debug("tracking_number = %r", data)
 
   if entry_list is None or len(entry_list) == 0:
     logging.warning("No entry_id found")
@@ -62,7 +58,7 @@ def handle_next_entry(db, data):
   if next_entry_id is None:
     logging.warning("No entry for current session found")
     db.reg_set("next_entry_id", None)
-    db.reg_set("next_entry_msg", "Invalid card_number or wrong session!")
+    db.reg_set("next_entry_msg", "Invalid tracking_number or wrong session!")
     play_sound('sounds/OutputFailure.wav')
     return False
   else:

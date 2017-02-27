@@ -1,3 +1,4 @@
 # Flask/Jinja config
 TEMPLATES_AUTO_RELOAD = True
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 

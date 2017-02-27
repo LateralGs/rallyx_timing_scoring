@@ -13,7 +13,7 @@
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Registry</h2>
+  <h1>Scoring Admin - Debug - Registry</h2>
   {% include 'admin_nav.html' %}
   {% include 'flash_message.html' %}
 
@@ -27,9 +27,14 @@
         <input type="submit" name="action" value="update">
       </form>
     </p>
-    {% else %}
-    <p>None</p>
     {% endfor %}
+    <p>
+      <form method="POST">
+        <input type="text" name="reg_name" size="26" />
+        <input type="text" name="reg_value" size="48"/>
+        <input type="submit" name="action" value="insert">
+      </form>
+    </p>
     </table>
   </div>
 </body>

@@ -27,30 +27,19 @@
     <h2>Add Event</h2>
     <form action="{{url_for('events_page')}}"  method='POST'>
       <p><label>Name:</label>*<input type="text" size=40 name="name" required /></p>
-      <p><label>Location:</label>*<input type="text" size=40 name="location" value="{{config.DEFAULT_LOCATION}}" required /></p>
+      <p><label>Location:</label>*<input type="text" size=40 name="location" required /></p>
       <p><label>Date:</label>*<input type="date" size=40 name="event_date" value="{{g.default_date}}" required /></p>
-      <p><label>Season:</label>*<input type="text" size=40 name="season_name" value="{{config.DEFAULT_SEASON}}" required /></p>
-      <p><label>Organization:</label> <input type="text" size=40 name="organization" value="{{config.DEFAULT_ORGANIZATION}}"/></p>
-      <p><label>Season Points:</label>
-      <select name="season_points">
-        <option value='0'>No</option>
-        <option value='1' selected>Yes</option>
-      </select></p>
-      <p><label>Visible:</label>
-      <select name="visible">
-        <option value='0' selected>No</option>
-        <option value='1'>Yes</option>
+      <p><label>Season:</label>*<input type="text" size=40 name="season_name" value="{{g.default_season}}" required /></p>
+      <p><label>Organization:</label> <input type="text" size=40 name="organization"/></p>
+      <p><label>Rule Set:</label>*<select name="rule_set" required >
+        {% for rule_set_id in g.rule_sets %}
+        <option value="{{rule_set_id}}">{{g.rule_sets[rule_set_id].name}}</option>
+        {% endfor %}
       </select></p>
       <p><label>Max Runs:</label>
       <select name="max_runs">
-        {% for i in range(g.rules.min_runs,21)%}
-        <option {{'selected' if g.rules.max_runs == i}}>{{i}}</option>
-        {% endfor %}
-      </select></p>
-      <p><label>Drop Runs:</label>
-      <select name="drop_runs">
-        {% for i in range(0,20)%}
-        <option {{'selected' if g.rules.drop_runs == i}}>{{i}}</option>
+        {% for i in range(1,21)%}
+        <option>{{i}}</option>
         {% endfor %}
       </select></p>
       <p><label>Note:</label> <input type="text" size=40 name="event_note" /></p>
@@ -68,24 +57,22 @@
       <th>Date</th>
       <th>Season</th>
       <th>Organization</th>
-      <th class="nowrap">Season Points</th>
+      <th class="nowrap">Rule Set</th>
       <th class="nowrap">Max Runs</th>
-      <th class="nowrap">Drop Runs</th>
-      <th>Visible</th>
     </tr>
     <tr class="break"></tr>
     {% for event in g.event_list %}
-    {% if event.event_id == g.active_event_id %}
+    {% if event.event_id == g.event['event_id'] %}
     <tr>
       <th colspan=12>Active Event</th>
     </tr>
     {% endif %}
-    <tr class="{{'active' if event.event_id == g.active_event_id}}" id="{{event.event_id}}">
+    <tr class="{{'active' if event.event_id == g.event['event_id']}}" id="{{event.event_id}}">
       <td><button onclick='$("#edit_{{event.event_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{event.event_id}}").offset().top});'>Edit</button></td>
       <td>
         <form action="{{url_for('events_page')}}"  method='POST'>
           <input type="hidden" name="event_id" value="{{event.event_id}}" />
-          {% if event.event_id != g.active_event_id %}
+          {% if event.event_id != g.event['event_id'] %}
           <button type="submit" name="action" value="activate">Activate</button>
           {% else %}
           <button type="submit" name="action" value="deactivate"><b>Deactivate</b></button>
@@ -97,12 +84,10 @@
       <td class="nowrap">{{event.event_date}}</td>
       <td class="nowrap">{{event.season_name}}</td>
       <td class="nowrap">{{event.organization}}</td>
-      <td>{{'Yes' if event.season_points else 'No'}}</td>
+      <td>{{event.rule_set}}</td>
       <td>{{event.max_runs}}</td>
-      <td>{{event.drop_runs}}</td>
-      <td>{{'Yes' if event.visible else 'No'}}</td>
     </tr>
-    <tr class="{{'active' if event.event_id == g.active_event_id}}">
+    <tr class="{{'active' if event.event_id == g.event['event_id']}}">
       <td colspan=2 style="text-align: right">Note:</td>
       <td colspan=11 style="text-align: left; font-weight: bold">{{event.event_note}}</td>
     </tr>
@@ -115,26 +100,15 @@
           <p><label>Date:</label>*<input type="date" size=40 name="event_date" value="{{event.event_date}}" required /></p>
           <p><label>Season:</label>*<input type="text" size=40 name="season_name" value="{{event.season_name}}" required /></p>
           <p><label>Organization:</label> <input type="text" size=40 name="organization" value="{{event.organization}}"/></p>
-          <p><label>Season Points:</label>
-          <select name="season_points">
-            <option value='0' {{'selected' if not event.season_points}}>No</option>
-            <option value='1' {{'selected' if event.season_points}}>Yes</option>
-          </select></p>
-          <p><label>Visible:</label>
-          <select name="visible">
-            <option value='0' {{'selected' if not event.visible}}>No</option>
-            <option value='1' {{'selected' if event.visible}}>Yes</option>
+          <p><label>Rule Set:</label>*<select name="rule_set" required >
+            {% for rule_set_id in g.rule_sets %}
+            <option value="{{rule_set_id}}" {{'selected' if event.rule_set == rule_set_id}}>{{g.rule_sets[rule_set_id].name}}</option>
+            {% endfor %}
           </select></p>
           <p><label>Max Runs:</label>
           <select name="max_runs">
-            {% for i in range(g.rules.min_runs,21)%}
+            {% for i in range(1,21)%}
             <option {{'selected' if event.max_runs == i}}>{{i}}</option>
-            {% endfor %}
-          </select></p>
-          <p><label>Drop Runs:</label>
-          <select name="drop_runs">
-            {% for i in range(0,20)%}
-            <option {{'selected' if event.drop_runs == i}}>{{i}}</option>
             {% endfor %}
           </select></p>
           <p><label>Note:</label> <input type="text" size=40 name="event_note" value="{{event.event_note if event.event_note}}" /></p>
