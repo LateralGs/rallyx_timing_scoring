@@ -7,7 +7,15 @@ else
 iface=$1
 fi
 
-echo $iface
+if [ -z $2 ]
+then
+ssid=`hostname`
+else
+ssid=$2
+fi
 
-create_ap -n --redirect-to-localhost --isolate-clients -g 10.10.10.10 "$iface" nwra_scoring_2
+echo $iface
+echo $ssid
+
+sudo create_ap -n --redirect-to-localhost --isolate-clients -g 10.10.10.10 "$iface" "$ssid"
 
