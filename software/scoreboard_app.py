@@ -53,6 +53,7 @@ app.jinja_env.lstrip_blocks=True
 def get_db():
   db = getattr(g, '_database', None)
   if db is None:
+    logging.debug(config.SCORING_DB_PATH)
     db = g._database = ScoringDatabase(config.SCORING_DB_PATH)
   return db
 
@@ -88,7 +89,7 @@ def get_rules(event):
 def index_page():
   db = get_db()
   g.event = get_event(db)
-  g.rules = get_rules(event)
+  g.rules = get_rules(g.event)
   
   if g.event is None:
     return "No active event."
@@ -112,7 +113,7 @@ def index_page():
   g.entry_run_list = {}
   for entry in g.driver_entry_list:
     # FIXME TODO add other run states so we can show pending runs in scores
-    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored',), limit=g.rules.max_runs)
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored','started','finished'), limit=g.rules.max_runs)
   
   g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
   
