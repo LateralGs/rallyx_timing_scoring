@@ -2,9 +2,15 @@
 
 if [ -z $1 ]
 then
-iface=`ls /sys/class/net | grep wlp0s26u | head -n1`
+iface=`ls /sys/class/net | grep "wlp.*u.*" | head -n1`
 else
 iface=$1
+fi
+
+if [ -z $iface ]
+then
+echo "Wireless usb interface not found"
+exit
 fi
 
 if [ -z $2 ]
