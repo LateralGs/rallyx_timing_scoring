@@ -276,13 +276,17 @@ class ScoringDatabase(apsw.Connection):
   def driver_entry_list(self, event_id):
     return list(self.cursor().execute("SELECT * FROM driver_entries WHERE event_id=?", (event_id,)))
   
+  def set_run_recalc(self, run_id):
+    self.execute("UPDATE runs SET recalc=1 WHERE run_id=?", (run_id,))
+    return self.changes()
+
   def set_entry_recalc(self, entry_id):
     self.execute("UPDATE entries SET recalc=1 WHERE entry_id=?", (entry_id,))
     return self.changes()
 
   def set_event_recalc(self, event_id):
+    self.execute("UPDATE runs SET recalc=1 WHERE event_id=?", (event_id,))
     self.execute("UPDATE entries SET recalc=1 WHERE event_id=?", (event_id,))
-    # FIXME do we update runs too?
     return self.changes()
 
   def set_run_recalc(self, run_id):

@@ -142,7 +142,7 @@ def clean_str(s):
 #######################################
 
 def time_cmp(a,b):
-  util_log.debug("cmp: %r, %r", a, b)
+  #util_log.debug("time_cmp: %r, %r", a, b)
   if a is None and b is None:
     return 0
   elif a is None:
@@ -158,8 +158,31 @@ def time_cmp(a,b):
 
 #######################################
 
+def run_cmp(a,b):
+  #util_log.debug("run_cmp: %r, %r", a, b)
+  if a['dns_dnf'] and b['dns_dnf']:
+    return 0
+  elif a['dns_dnf']:
+    return 1
+  elif b['dns_dnf']:
+    return -1
+  elif a['total_time_ms'] in (0,None) and b['total_time_ms'] in (0,None):
+    return 0
+  elif a['total_time_ms'] in (0,None):
+    return 1
+  elif b['total_time_ms'] is (0,None):
+    return -1
+  elif a['total_time_ms'] < b['total_time_ms']:
+    return -1
+  elif a['total_time_ms'] > b['total_time_ms']:
+    return 1
+  else:
+    return 0
+
+#######################################
+
 def entry_cmp(a,b):
-  util_log.debug("entry_cmp: %r, %r", a, b)
+  #util_log.debug("entry_cmp: %r, %r", a, b)
   if a['event_runs'] < b['event_runs']:
     return 1
   elif a['event_runs'] > b['event_runs']:

@@ -50,14 +50,26 @@ if __name__ == '__main__':
     # FIXME consider changing this to uwsgi.signal_wait() so that we can filter on a particular type
     logging.debug("RECALC")
 
-    entry_id = 1 # trigger first iteration
-    while entry_id is not None:
-      # find next item to recalc
+    run_id = 1 # trigger first iteration
+    while run_id is not None:
+      # find next run to recalc
       with db:
         event = get_event(db)
-        entry_id = db.query_single("SELECT entry_id FROM entries WHERE event_id=? AND recalc=1", (event['event_id'],))
+        run_id = db.query_single("SELECT run_id FROM runs WHERE event_id=? AND recalc", (event['event_id'],))
+        if run_id is not None:
+          # indicate we are processing run
+          db.update('runs', run_id, recalc=2)
+          rules = get_rules(event)
+          rules.recalc_run(db, run_id)
+
+    entry_id = 1 # trigger first iteration
+    while entry_id is not None:
+      # find next entry to recalc
+      with db:
+        event = get_event(db)
+        entry_id = db.query_single("SELECT entry_id FROM entries WHERE event_id=? AND recalc", (event['event_id'],))
         if entry_id is not None:
-          # reserve recalc
+          # indicate we are processing entry
           db.update('entries', entry_id, recalc=2)
           rules = get_rules(event)
           rules.recalc_entry(db, entry_id)

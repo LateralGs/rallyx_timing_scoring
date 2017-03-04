@@ -400,7 +400,11 @@ $(document).ready(function(){
             <td><input type="text" class="raw_time" size="14" value="{{run.raw_time if run.raw_time}}" disabled /></td>
             <td><input type="number" class="cones_input" min="0" max="100" name="cones" value="{{run.cones if run.cones}}" /></td>
             <td><input type="number" class="gates_input" min="0" max="100" name="gates" value="{{run.gates if run.gates}}" /></td>
+            {% if run.recalc %}
+            <td><input type="text" class="total_time" size="14" value="RECALC" disabled /></td>
+            {% else %}
             <td><input type="text" class="total_time" size="14" value="{{run.total_time if run.total_time}}" disabled /></td>
+            {% endif %}
             <td>
               <select class="run_state" name="state">
                 <option value="started" {{'selected' if run.state == 'started'}}>Started</option>

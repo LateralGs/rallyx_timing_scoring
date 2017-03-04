@@ -361,8 +361,8 @@ def timing_page():
       uwsgi.mule_msg('recalc')
       flash("Old entry recalc")
 
-    # FIXME should this be deferred?
-    g.rules.recalc_run(db, run_id)
+    db.set_run_recalc(run_id)
+    uwsgi.mule_msg('recalc')
     flash("Run recalc")
 
     if 'entry_id' in run_data and run_data['entry_id'] is not None:
@@ -380,8 +380,8 @@ def timing_page():
       elif key in request.form:
         run_data[key] = clean_str(request.form.get(key))
     run_id = db.insert('runs', **run_data)
-    # FIXME should this be deferred?
-    g.rules.recalc_run(db, run_id)
+    db.set_run_recalc(run_id)
+    uwsgi.mule_msg('recalc')
     flash("Added new run [%r]" % run_id)
     return redirect(url_for('timing_page'))
 

@@ -60,7 +60,8 @@ def handle_start_event(db, event, rules, time_ms, time_id):
       logging.info("Start [FALSE]: %r", time_id)
       play_sound('sounds/FalseStart.wav')
     else:
-      rules.recalc_run(db, run_id)
+      db.set_run_recalc(run_id)
+      uwsgi.mule_msg('recalc')
       logging.info("Start: %r", time_id)
       play_sound('sounds/CarStarted.wav')
   else:
@@ -78,7 +79,8 @@ def handle_finish_event(db, event, rules, time_ms, time_id):
       logging.info("Finish [FALSE]: %r", time_id)
       play_sound('sounds/FalseFinish.wav')
     else:
-      rules.recalc_run(db, run_id)
+      db.set_run_recalc(run_id)
+      uwsgi.mule_msg('recalc')
       logging.info("Finish: %r", time_id)
       play_sound('sounds/CarFinished.wav')
   else:

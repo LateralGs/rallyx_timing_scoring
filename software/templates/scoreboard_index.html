@@ -59,6 +59,11 @@
     text-align: left;
   }
 
+  td.time {
+    white-space: nowrap;
+    text-align: right;
+  }
+
   td.drop {
     //font-weight: bold;
   }
@@ -105,14 +110,14 @@
       {% if car_class in g.class_entry_list %}
       <thead>
       <tr>
-        <th colspan="{{(4*g.rules.max_runs) + 8}}">
+        <th colspan="{{(4*g.rules.max_runs) + 7}}">
           <a name="{{car_class}}" class="anchor"/>
             {{g.rules.car_class_names[car_class]}}
         </th>
       </tr>
       <tr>
         <th colspan=4>Entry</th>
-        <th colspan=4 class="left_border">Event</th>
+        <th colspan=3 class="left_border">Event</th>
         {% for num in range(g.rules.max_runs) %}
         <th class="left_border" colspan=4>Run {{num+1}}</th>
         {% endfor %}
@@ -125,7 +130,6 @@
         <th class="left_border">Penalty<br>Time</th>
         <th>Total<br>Time</th>
         <th>In<br>Class</th>
-        <th>Recalc<br>Status</th>
         {% for num in range(g.rules.max_runs) %}
         <th class="left_border">Raw</th>
         <th>C</th>
@@ -147,20 +151,25 @@
           </td>
           <td class="car_info">{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</td>
           <td class="left_border">{{entry.event_penalties if entry.event_penalties}}</td>
-          <td>{{entry.event_time if entry.event_time}}</td>
+          {% if entry.recalc %}
+          <td><span style="padding: 2px; color: white; background-color: red; font-weight: bold">RECALC</span></td>
+          {% else %}
+          <td class="time">{{entry.event_time if entry.event_time}}</td>
+          {% endif %}
           <td>{{loop.index if entry.event_time}}</td>
-          <td>{% if entry.recalc %}<span style="padding: 2px; color: white; background-color: red; font-weight: bold">RECALC</span>{% endif %}</td>
           {% for run in g.entry_run_list[entry.entry_id] %}
-            <td class="left_border {{ 'drop' if run.drop_run else ''}}">{{run.raw_time if run.state == 'scored' else run.state}}</td>
+            <td class="left_border time {{ 'drop' if run.drop_run else ''}}">{{run.raw_time if run.state == 'scored' else run.state}}</td>
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.cones if run.cones > 0 else '-'}}</td>
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.gates if run.gates > 0 else '-'}}</td>
-            {% if run.drop_run %}
-            <td class="drop">({{run.total_time if run.state == 'scored' else run.state}})</td>
+            {% if run.recalc %}
+            <td class="time">RECALC</td>
+            {% elif run.drop_run %}
+            <td class="drop time">({{run.total_time if run.state == 'scored' else run.state}})</td>
             {% else %}
-            <td>{{run.total_time if run.state == 'scored' else run.state}}</td>
+            <td class="time">{{run.total_time if run.state == 'scored' else run.state}}</td>
             {% endif%}
           {% endfor %}
-          {% for i in range(g.rules.max_runs-entry.event_runs) %}
+          {% for i in range(g.rules.max_runs-(g.entry_run_list[entry.entry_id]|length)) %}
           <td class="left_border" colspan=4>&nbsp;</td>
           {% endfor %}
         </tr>
