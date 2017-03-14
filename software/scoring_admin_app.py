@@ -509,6 +509,9 @@ def entries_page():
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
+    # remove leading zeros from tracking_number
+    if 'tracking_number' in entry_data:
+      entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
     if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
       flash("Invalid driver for new entry, no entry created.", F_ERROR)
     elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
@@ -532,6 +535,9 @@ def entries_page():
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
+    # remove leading zeros from tracking_number
+    if 'tracking_number' in entry_data:
+      entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
     #entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
     db.update('entries', entry_id, **entry_data)
     flash("Entry changes saved")
@@ -548,12 +554,14 @@ def entries_page():
 
   elif action == 'tracking_check_in':
     tracking_number = request.form.get('tracking_number')
-    entry = db.select_one('driver_entries', tracking_number=tracking_number)
-    if not entry:
-      flash("Entry not found for tracking number %s" % tracking_number, F_ERROR)
-      return redirect(url_for('entries_page'))
-    db.update('entries', entry['entry_id'], checked_in=1)
-    flash("Entry checked in")
+    if tracking_number is not None:
+      tracking_number = tracking_number.lstrip('0')
+      entry = db.select_one('driver_entries', tracking_number=tracking_number)
+      if not entry:
+        flash("Entry not found for tracking number %s" % tracking_number, F_ERROR)
+        return redirect(url_for('entries_page'))
+      db.update('entries', entry['entry_id'], checked_in=1)
+      flash("Entry checked in")
     return redirect(url_for('entries_page'))
 
   elif action is not None:
