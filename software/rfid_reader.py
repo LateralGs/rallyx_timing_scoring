@@ -12,6 +12,8 @@ class RFIDReader(SerialHandler):
   def __init__(self, port=None):
     super(RFIDReader,self).__init__(port, BAUDRATE)
     self.line_buffer = ""
+    self.version_id = None
+    self.serial_number = None
 
   @serial_wrapper
   def read(self):
@@ -30,7 +32,9 @@ class RFIDReader(SerialHandler):
         local_checksum ^= int(number[8:10],16)
         if checksum == local_checksum:
           self.line_buffer = ""
-          return int(number,16)
+          self.version_id = int(number[0:2],16)
+          self.serial_number = int(number[2:10],16)
+          return self.serial_number
       c = self.serial.read(1)
     return None
 
