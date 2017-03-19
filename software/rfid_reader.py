@@ -64,5 +64,5 @@ if __name__ == "__main__":
         reader.send_ack()
         reader.pause(2)
         reader.beep(2)
-        print repr(data)
+        print repr(data), repr([reader.version_id,reader.serial_number])
 

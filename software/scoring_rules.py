@@ -215,8 +215,8 @@ class NWRA_RallySprint_Rules(DefaultRules):
     '2U':'2WD Under',
     }
   car_class_alias = {
-      'AWD Over':'AO',
-      'AWD Under':'AU',
+      'AWD Over':'4O',
+      'AWD Under':'4U',
       '2WD Over':'2O',
       '2WD Under':'2U',
       }
