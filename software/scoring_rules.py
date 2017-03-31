@@ -186,6 +186,7 @@ class NWRA_RallyCross_Rules(DefaultRules):
     'Mod RWD':'MR',
     'Prepared RWD':'PR',
     'Stock RWD':'SR',
+    'Time Only':'TO'
       }
   dnf_penalty = 10
   
