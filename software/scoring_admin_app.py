@@ -509,9 +509,6 @@ def entries_page():
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
-    # remove leading zeros from tracking_number
-    if 'tracking_number' in entry_data:
-      entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
     if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
       flash("Invalid driver for new entry, no entry created.", F_ERROR)
     elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
@@ -535,9 +532,6 @@ def entries_page():
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
-    # remove leading zeros from tracking_number
-    if 'tracking_number' in entry_data:
-      entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
     #entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
     db.update('entries', entry_id, **entry_data)
     flash("Entry changes saved")
@@ -609,6 +603,10 @@ def drivers_page():
         continue # ignore
       elif key in request.form:
         driver_data[key] = clean_str(request.form.get(key))
+    # remove leading zeros from tracking_number
+    if 'tracking_number' in driver_data:
+      driver_data['tracking_number'] = driver_data['tracking_number'].lstrip('0')
+      flash("tracking_number = %r" % driver_data['tracking_number'])
     driver_id = db.insert('drivers',**driver_data)
     flash("Added new driver [%r]" % driver_id)
     return redirect(url_for('drivers_page'))
@@ -624,6 +622,10 @@ def drivers_page():
         continue # ignore
       elif key in request.form:
         driver_data[key] = clean_str(request.form.get(key))
+    # remove leading zeros from tracking_number
+    if 'tracking_number' in driver_data:
+      driver_data['tracking_number'] = driver_data['tracking_number'].lstrip('0')
+      flash("tracking_number = %r" % driver_data['tracking_number'])
     db.update('drivers', driver_id, **driver_data)
     flash("Driver changes saved")
     return redirect(url_for('drivers_page'))
