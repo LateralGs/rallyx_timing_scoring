@@ -163,7 +163,7 @@ class ORG_RallyCross_Rules(DefaultRules):
 
 class NWRA_RallyCross_Rules(DefaultRules):
   name = "NWRA Rally Cross"
-  car_class_list = ['SA','PA','MA','SF','PF','MF','SR','PR','MR']
+  car_class_list = ['SA','PA','MA','SF','PF','MF','SR','PR','MR','TO']
   car_class_names = {
     'SA':'Stock All',
     'PA':'Prepared All',
