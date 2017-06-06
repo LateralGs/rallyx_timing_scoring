@@ -1096,7 +1096,10 @@ def export_scores_page():
           row.append(run['raw_time'])
           row.append(run['cones'])
           row.append(run['gates'])
-          row.append(run['total_time'])
+          if g.rules.drop_runs > 0 and run['drop_run']:
+            row.append('(' + str(run['total_time']) + ')')
+          else:
+            row.append(run['total_time'])
           count -= 1
 
         # add blanks for missing runs
