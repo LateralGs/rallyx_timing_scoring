@@ -141,6 +141,11 @@ class DefaultRules(object):
       else:
         entry['event_time'] = format_time(entry['event_time_ms']) if entry['event_time_ms'] > 0 else None
 
+      for run in dropped_runs:
+        db.execute("UPDATE runs SET drop_run=1 WHERE run_id=:run_id", run)
+      for run in scored_runs:
+        db.execute("UPDATE runs SET drop_run=0 WHERE run_id=:run_id", run)
+
       db.execute("UPDATE entries SET recalc=0, event_time_ms=:event_time_ms, event_time=:event_time, event_penalties=:event_penalties, event_runs=:event_runs WHERE entry_id=:entry_id", entry)
 
 
