@@ -88,45 +88,63 @@
     padding-top: 45px;
   }
 
+
+  tr.hl {
+    border: 2px solid black;
+  }
+
+  .hl td {
+    font-weight: bold;
+    background-color: green;
+    color: white;
+  }
+
   </style>
+
   {% if g.auto_refresh %}
   <meta http-equiv="refresh" content="{{g.auto_refresh}}">
   {% endif %}
+
+  <script>
+  $(document).ready(function(){
+    $("input:checkbox").click(function() {
+      $(this).parent('td').parent('tr').toggleClass("hl");
+    });
+  });
+
+  </script>
 </head>
 <body>
   <h1>Live Scoring</h1>
-  <span>All scores are provisional pending fianal audit by event officials.</span>
+  <h4>All scores are provisional pending fianal audit by event officials.</h4>
   <!--<h3><a href="{{url_for('finish_page')}}">Latest Runs</a></h3>-->
   <!--<h3><a href="{{url_for('sectors_page')}}">Sector Times</a></h3>-->
 
   <div>
-    <h2>Event Scores</h2>
     <a name="top" />
     {% if g.rules.drop_runs > 0 %}
-    <span>()=Drop Run</span>
+    <div>Tip: () marks Drop Runs</div>
     {% endif %}
+    <div>Tip: Use checkbox to highlight rows</div>
+
     <table class="scores">
-      {% for car_class in g.rules.car_class_list %}
-      {% if car_class in g.class_entry_list %}
+      {% for car_class in g.rules.car_class_list if car_class in g.class_entry_list %}
       <thead>
       <tr>
-        <th colspan="{{(4*g.rules.max_runs) + 7}}">
+        <th colspan=4>
           <a name="{{car_class}}" class="anchor"/>
             {{g.rules.car_class_names[car_class]}}
         </th>
-      </tr>
-      <tr>
-        <th colspan=4>Entry</th>
         <th colspan=3 class="left_border">Event</th>
         {% for num in range(g.rules.max_runs) %}
         <th class="left_border" colspan=4>Run {{num+1}}</th>
         {% endfor %}
       </tr>
       <tr>
+        <th>
         <th>Class</td>
         <th>#</td>
-        <th>Name</td>
-        <th>Car</th>
+        <th>Entry</td>
         <th class="left_border">Penalty<br>Time</th>
         <th>Total<br>Time</th>
         <th>In<br>Class</th>
@@ -138,18 +156,19 @@
         {% endfor %}
       </tr>
       </thead>
-      <tbody class="{{ loop.cycle('blue','green','red','yellow','cyan','magenta') }}">
+      <tbody class="{{ loop.cycle('blue','green','red') }}">
         {% for entry in g.class_entry_list[car_class] %}
         <tr class="{{ loop.cycle('even', 'odd') }}">
+          <td><input type=checkbox></td>
           <td>{{entry.car_class}}</td>
           <td>{{entry.car_number}}</td>
           <td class="driver_name">
             {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}
             {% if entry.co_driver %}
-            <br/><small>{{ entry.co_driver}}</small>
+            / <small>{{ entry.co_driver}}</small>
             {% endif %}
+            <br><small>{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</small>
           </td>
-          <td class="car_info">{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</td>
           <td class="left_border">{{entry.event_penalties if entry.event_penalties}}</td>
           {% if entry.recalc %}
           <td><span style="padding: 2px; color: white; background-color: red; font-weight: bold">RECALC</span></td>
@@ -175,7 +194,6 @@
         </tr>
         {% endfor %}
       </tbody>
-      {% endif %}
       <tr class="break"></tr>
       {% endfor %}
     </table>
