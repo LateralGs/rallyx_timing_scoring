@@ -11,8 +11,9 @@ Software Dependencies
 
 
 Optional
-----
+---
 
-Tendo
+- tendo (used for log coloring)
+- create_ap (https://github.com/oblique/create_ap)
 
 
