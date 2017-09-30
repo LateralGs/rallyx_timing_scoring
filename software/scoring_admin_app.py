@@ -18,13 +18,15 @@ from cStringIO import StringIO
 from serial.tools.list_ports import comports
 from glob import glob
 import markdown
-import threading
 
 import uwsgidecorators
 import uwsgi
 
+import uuid
+import random
+
 #######################################
-# flash categories
+# message flash categories
 F_ERROR = 'error'
 F_WARN = 'warning'
 
@@ -41,6 +43,11 @@ try:
   import scoring_config as config
 except ImportError:
   raise ImportError("Unable to load scoring_config.py, please reference install instructions!")
+
+# this will implicitly test the db schema and init if needed
+test_db = ScoringDatabase(config.SCORING_DB_PATH)
+test_db.close()
+del test_db
 
 # allows use of secure cookies for sessions
 try:
@@ -99,14 +106,116 @@ def get_rules(event):
     return None
 
 
+def new_access_code(db):
+  # search for unique access code
+  access_code = random.randint(1000,9999)
+  while db.query_single("SELECT count(*) FROM access_control_users WHERE access_code=?", (access_code,)):
+    access_code = (access_code + random.randint(1,999)) % 10000
+  return access_code
+
+
+@app.before_request
+def access_control_host_check():
+  db = get_db()
+  # allow localhost connections on port 8020
+  if request.host in ('localhost:8020','127.0.0.1:8020') and request.remote_addr in ('localhost', '127.0.0.1'):
+    logging.debug("local connection, auth ok")
+    g.user = {'local':True}
+    return # allow host
+  else:
+    g.user = db.select_one('access_control_users', session_uuid=session.get('uuid'))
+    if g.user is None:
+      logging.debug("remote connection, new host")
+      session['uuid'] = str(uuid.uuid4())
+      session.permanent = True
+      g.user = {'access_code': new_access_code(db), 'local':False}
+      db.insert('access_control_users', session_uuid=session['uuid'], remote_addr=request.remote_addr, access_code=g.user['access_code'], user_agent=request.user_agent.string)
+      return render_template('admin_access_denied.html')
+    elif g.user['allowed']:
+      g.user['local'] = False
+      g.user['perm'] = db.query_single_list("SELECT name FROM access_control_permissions WHERE user_id=? AND allowed", (g.user['user_id'],))
+      logging.debug("remote connection, host ok")
+      return # allow host
+    else:
+      g.user['local'] = False
+      logging.debug("remote connection, host denied")
+      return render_template('admin_access_denied.html')
+
+
 #######################################
 
 
 @app.route('/')
 def index_page():
-  # nothing to do, static page for instructions
-  return render_template('admin_index.html')
+  return render_template('admin_menu.html')
 
+
+@app.route('/menu')
+def menu_page():
+  return render_template('admin_menu.html')
+
+
+#######################################
+
+@app.route('/rest/<action>')
+def rest_page(action):
+  pass
+
+
+
+#######################################
+
+
+@app.route('/registration', methods=['GET','POST'])
+def registration_page():
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+
+  
+  if g.event is None:
+    flash("No active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+  if g.rules is None:
+    flash("Invalid rule set for active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+
+  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
+  
+  g.entry_driver_id_list = []
+  for driver_entry in g.driver_entry_list:
+    g.entry_driver_id_list.append(driver_entry['driver_id'])
+
+  # create lookup dict for driver_id's
+  g.driver_dict = {}
+  for driver in g.driver_list:
+    g.driver_dict[driver['driver_id']] = driver
+
+  return render_template('admin_registration.html')
+
+
+#######################################
+
+
+@app.route('/access_control', methods=['GET','POST'])
+def access_control_page():
+  # only local connections can change access controls
+  if not g.user['local'] and 'admin' not in g.user['perm']:
+    return render_template('admin_access_denied.html')
+
+  # FIXME TODO
+  flash("Feature not implemented!",F_ERROR)
+
+  return redirect(url_for('menu_page'))
+  #return render_template('admin_access_control.html')
+
+
+@app.route('/next_entry', methods=['GET','POST'])
+def next_entry_page():
+  flash("Feature not implemented!",F_ERROR)
+  return redirect(url_for('menu_page'))
+  
 
 #######################################
 
@@ -114,7 +223,6 @@ def index_page():
 @app.route('/events', methods=['GET','POST'])
 def events_page():
   db = get_db()
-
   action = request.form.get('action')
 
   if action == 'activate':
@@ -193,6 +301,7 @@ def events_page():
   g.default_season = datetime.date.today().year
 
   g.rule_sets = scoring_rules.get_rule_sets()
+  g.default_rule_set = db.reg_get('default_rule_set')
   
   return render_template('admin_events.html')
 
@@ -440,7 +549,7 @@ def timing_page():
   g.start_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_start
   g.finish_ready = g.hardware_ok and (g.tag_heuer_status == 'Open') and not g.disable_finish
 
-  g.race_session = db.reg_get('race_session')
+  g.run_group = db.reg_get('run_group')
   g.next_entry_msg = db.reg_get('next_entry_msg')
 
   # create car description strings for entries
@@ -473,6 +582,75 @@ def timer_data_page():
 
 #######################################
 
+@app.route('/registration/new_entry', methods=['GET','POST'])
+def registration_new_entry_page():
+  return new_entry_page('registration')
+
+@app.route('/entries/new_entry', methods=['GET','POST'])
+def entries_new_entry_page():
+  return new_entry_page('entries')
+
+@app.route('/new_entry', methods=['GET','POST'])
+def new_entry_page(parent=None):
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+
+  g.parent = parent
+
+  g.default_driver_id = parse_int(request.args.get('driver_id'))
+
+  if g.event is None:
+    flash("No active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+  if g.rules is None:
+    flash("Invalid rule set for active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+
+  action = request.form.get('action')
+
+  if action == 'insert':
+    entry_data = {}
+    for key in db.table_columns('entries'):
+      if key in ['entry_id']:
+        continue # ignore
+      elif key in request.form:
+        entry_data[key] = clean_str(request.form.get(key))
+    if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
+      flash("Invalid driver for new entry, no entry created.", F_ERROR)
+    elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
+      flash("Invalid car class for new entry, no entry created.", F_ERROR)
+    else:
+      entry_data['run_group'] = db.reg_get("%s_run_group" % entry_data['car_class'])
+      if db.count('entries', event_id=g.event['event_id'], driver_id=entry_data['driver_id']):
+        flash("Entry already exists for driver! Creating new entry anyways.", F_WARN)
+      entry_id = db.insert('entries',**entry_data)
+      flash("Added new entry [%r]" % entry_id)
+    if parent == 'registration':
+      return redirect(url_for('registration_page'))
+    elif parent == 'entries':
+      return redirect(url_for('entries_page'))
+    else:
+      return redirect(url_for('new_entry_page'))
+  
+  elif action is not None:
+    flash("Invalid form action %r" % action, F_ERROR)
+    if parent == 'registration':
+      return redirect(url_for('registration_new_entry_page'))
+    elif parent == 'entries':
+      return redirect(url_for('entries_new_entry_page'))
+    else:
+      return redirect(url_for('new_entry_page'))
+
+  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
+  
+  # create lookup dict for driver_id's
+  g.driver_dict = {}
+  for driver in g.driver_list:
+    g.driver_dict[driver['driver_id']] = driver
+
+  return render_template('admin_new_entry.html')
+
 
 @app.route('/entries', methods=['GET','POST'])
 def entries_page():
@@ -502,25 +680,6 @@ def entries_page():
       flash("Delete ignored, no confirmation", F_WARN)
     return redirect(url_for('entries_page'))
 
-  elif action == 'insert':
-    entry_data = {}
-    for key in db.table_columns('entries'):
-      if key in ['entry_id']:
-        continue # ignore
-      elif key in request.form:
-        entry_data[key] = clean_str(request.form.get(key))
-    if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
-      flash("Invalid driver for new entry, no entry created.", F_ERROR)
-    elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
-      flash("Invalid car class for new entry, no entry created.", F_ERROR)
-    else:
-      entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
-      if db.count('entries', event_id=g.event['event_id'], driver_id=entry_data['driver_id']):
-        flash("Entry already exists for driver! Creating new entry anyways.", F_WARN)
-      entry_id = db.insert('entries',**entry_data)
-      flash("Added new entry [%r]" % entry_id)
-    return redirect(url_for('entries_page'))
-  
   elif action == 'update':
     entry_id = request.form.get('entry_id')
     if not db.entry_exists(entry_id):
@@ -532,7 +691,7 @@ def entries_page():
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
-    #entry_data['race_session'] = db.reg_get("%s_session" % entry_data['car_class'])
+    #entry_data['run_group'] = db.reg_get("%s_run_group" % entry_data['car_class'])
     db.update('entries', entry_id, **entry_data)
     flash("Entry changes saved")
     return redirect(url_for('entries_page'))
@@ -575,6 +734,53 @@ def entries_page():
 
 #######################################
 
+@app.route('/registration/new_driver', methods=['GET','POST'])
+def registration_new_driver_page():
+  return new_driver_page('registration')
+
+@app.route('/drivers/new_driver', methods=['GET','POST'])
+def drivers_new_driver_page():
+  return new_driver_page('drivers')
+
+@app.route('/new_driver', methods=['GET','POST'])
+def new_driver_page(parent=None):
+  db = get_db()
+
+  g.parent = parent
+  
+  action = request.form.get('action')
+
+  if action == 'insert':
+    driver_data = {}
+    for key in db.table_columns('drivers'):
+      if key in ['driver_id']:
+        continue # ignore
+      elif key in request.form:
+        driver_data[key] = clean_str(request.form.get(key))
+    # remove leading zeros from tracking_number
+    if 'tracking_number' in driver_data and driver_data['tracking_number'] is not None:
+      driver_data['tracking_number'] = driver_data['tracking_number'].lstrip('0')
+      flash("tracking_number = %r" % driver_data['tracking_number'])
+    driver_id = db.insert('drivers',**driver_data)
+    flash("Added new driver [%r]" % driver_id)
+    if parent == 'registration':
+      return redirect(url_for('registration_new_entry_page',driver_id=driver_id))
+    elif parent == 'drivers':
+      return redirect(url_for('drivers_page'))
+    else:
+      return redirect(url_for('new_driver_page'))
+
+  elif action is not None:
+    flash("Unkown form action %r" % action, F_ERROR)
+    if parent == 'registration':
+      return redirect(url_for('registration_new_driver_page'))
+    elif parent == 'drivers':
+      return redirect(url_for('drivers_new_driver_page'))
+    else:
+      return redirect(url_for('new_driver_page'))
+
+  return render_template('admin_new_driver.html')
+
 
 @app.route('/drivers', methods=['GET','POST'])
 def drivers_page():
@@ -594,21 +800,6 @@ def drivers_page():
         flash("Invalid driver_id for delete operation.", F_ERROR)
     else:
       flash("Delete ignored, no confirmation", F_WARN)
-    return redirect(url_for('drivers_page'))
-
-  elif action == 'insert':
-    driver_data = {}
-    for key in db.table_columns('drivers'):
-      if key in ['driver_id']:
-        continue # ignore
-      elif key in request.form:
-        driver_data[key] = clean_str(request.form.get(key))
-    # remove leading zeros from tracking_number
-    if 'tracking_number' in driver_data and driver_data['tracking_number'] is not None:
-      driver_data['tracking_number'] = driver_data['tracking_number'].lstrip('0')
-      flash("tracking_number = %r" % driver_data['tracking_number'])
-    driver_id = db.insert('drivers',**driver_data)
-    flash("Added new driver [%r]" % driver_id)
     return redirect(url_for('drivers_page'))
 
   elif action == 'update':
@@ -754,8 +945,8 @@ def penalties_page():
 #######################################
 
 
-@app.route('/sessions', methods=['GET','POST'])
-def sessions_page():
+@app.route('/run_groups', methods=['GET','POST'])
+def run_groups_page():
   db = get_db()
   g.event = get_event(db)
   g.rules = get_rules(g.event)
@@ -769,36 +960,39 @@ def sessions_page():
 
   action = request.form.get('action')
 
+  # FIXME change sessions to run_groups
+
   if action == 'update':
     for car_class in g.rules.car_class_list:
-      class_session = request.form.get("%s_session" % car_class)
-      if class_session not in ('1','2','3','4','-1'):
-        class_session = '-1'
-      db.reg_set("%s_session" % car_class, class_session)
-      db.entry_session_update(g.event['event_id'], car_class, class_session)
+      class_run_group = request.form.get("%s_run_group" % car_class)
+      if class_run_group not in ('1','2','3','4','-1'):
+        class_run_group = '-1'
+      db.reg_set("%s_run_group" % car_class, class_run_group)
+      db.entry_run_group_update(g.event['event_id'], car_class, class_run_group)
 
-    flash("Class sessions updated")
-    return redirect(url_for('sessions_page'))
+    flash("Class run groups updated")
+    return redirect(url_for('run_groups_page'))
 
-  elif action == 'set_session':
-    race_session = request.form.get('race_session')
-    if race_session not in ('1','2','3','4'):
-      race_session = '1'
-    db.reg_set('race_session', race_session)
-    flash("Active race session updated")
-    return redirect(url_for('sessions_page'))
+  elif action == 'set_run_group':
+    run_group = request.form.get('run_group')
+    if run_group not in ('1','2','3','4'):
+      run_group = '1'
+    db.reg_set('run_group', run_group)
+    flash("Active run group updated")
+    return redirect(url_for('run_groups_page'))
 
   elif action is not None:
     flash("Unkown form action %r" % action, F_ERROR)
-    return redirect(url_for('sessions_page'))
+    return redirect(url_for('run_groups_page'))
 
-  g.class_sessions = {}
+  g.class_run_groups = {}
   for car_class in g.rules.car_class_list:
-    g.class_sessions[car_class] = parse_int(db.reg_get("%s_session" % car_class), -1)
+    g.class_run_groups[car_class] = parse_int(db.reg_get("%s_run_group" % car_class), -1)
 
-  g.race_session = parse_int(db.reg_get('race_session'), 1)
+  g.run_group = parse_int(db.reg_get('run_group'), 1)
 
-  return render_template('admin_sessions.html')
+  return render_template('admin_run_groups.html')
+
 
 #######################################
 
@@ -883,7 +1077,6 @@ def scores_page():
 
   g.entry_run_list = {}
   for entry in g.driver_entry_list:
-    # FIXME TODO add other run states so we can show pending runs in scores
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored','finished','started'), limit=g.rules.max_runs)
   
   g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
@@ -1021,8 +1214,8 @@ def export_page():
 
 #######################################
 
-@app.route('/export/scores')
-def export_scores_page():
+@app.route('/export/scores/csv')
+def export_scores_csv_page():
   db = get_db()
   g.event = get_event(db)
   g.rules = get_rules(g.event)
@@ -1126,6 +1319,9 @@ def export_scores_page():
 
 @app.route('/debug', methods=['GET','POST'])
 def debug_registry_page():
+  if not g.user['local']:
+    return render_template('admin_access_denied.html')
+
   db = get_db()
   if request.method == 'POST' and request.form.get('action') == 'update':
     for key in request.form:

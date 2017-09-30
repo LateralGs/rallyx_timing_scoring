@@ -13,9 +13,13 @@
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Settings</h2>
-  {% include 'admin_nav.html' %}
-  {% include 'flash_message.html' %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Settings</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <div class="layout_box">
     <form method="POST">
@@ -64,6 +68,7 @@
         <span>(not used)</span>
       </p>
       </fieldset>
+      <br>
       <button type="submit" name="action" value="update">Save Settings</button>
     </form>
     </table>

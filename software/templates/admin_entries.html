@@ -25,70 +25,27 @@
   tr:target {
     background: #ffb;
   }
+
+  button.big {
+    padding-top: 1em;
+    padding-bottom: 1em;
+    padding-left: 5em;
+    padding-right: 5em;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Event Entries</h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
-
-  <div>
-    <h2>Add entry to current event</h2>
-    <form action="{{url_for('entries_page')}}" method='POST'>
-      <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
-      <p><label>Driver:</label>*<select name="driver_id" required>
-        <option selected disabled>-- Select Driver --</option>
-        {% for driver in g.driver_list %}
-        <option value="{{driver.driver_id}}">{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
-        {% else %}
-          <option disabled>None</option>
-        {% endfor %}
-      </select></p>
-      <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" /></p>
-      <p><label>Car Year:</label> <input type="text" size=40 name="car_year" /></p>
-      <p><label>Car Make:</label> <input type="text" size=40 name="car_make" /></p>
-      <p><label>Car Model:</label> <input type="text" size=40 name="car_model" /></p>
-      <p><label>Car Color:</label> <input type="text" size=40 name="car_color" /></p>
-      <p><label>Car Number:</label>*<input type="number" min="0" max="1000" size=40 name="car_number" required /></p>
-
-      <p><label>Car Class:</label>*<select name="car_class" required >
-        <option selected disabled>-- Select Class --</option>
-        {% for car_class in g.rules.car_class_list %}
-        <option value="{{car_class}}" >{{car_class}}: {{g.rules.car_class_names[car_class]}}</option>
-        {% else %}
-        <option value="TO">TO: Time Only</option>
-        {% endfor %}
-      </select></p>
-      <p><label>Season Points:</label> <select name="season_points">
-        <option value="1" selected>Yes</option>
-        <option value="0" >No</option>
-      </select></p>
-      <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assignment" /></p>
-      <p><label>Show Scores:</label> <select name="scores_visible">
-        <option value="1" selected>Yes</option>
-        <option value="0" >No</option>
-      </select></p>
-      <p><label>Checked In:</label> <select name="checked_in">
-        <option value="1" >Yes</option>
-        <option value="0" selected>No</option>
-      </select></p>
-      <p><label>Note:</label> <input type="text" size=40 name="entry_note" /></p>
-      <br/>
-      <p><label><b>* = required</b></label> <button type="submit" name="action" value="insert">Add Entry</button></p>
-    </form>
-  </div>
-  <!--
-  <hr/>
-  <div>
-    <h2>Entry Check In</h2>
-    <form action="{{url_for('entries_page')}}" method='POST'>
-      <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
-      <p><label>Tracking #:</label> <input type="number" min="0" max="9999999999" size=40 name="tracking_number" autofocus /> <button type="submit" name="action" value="card_check_in">Check In</button></p>
-    </form>
-  </div>
-  -->
-
-  <hr/>
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a href="{{url_for('drivers_page')}}">Drivers</a>
+      <a class="menu_active" href="" title="Refresh">Entries</a>
+      <a href="{{url_for('entries_new_entry_page')}}">Add Entry</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
+  
   <h2>Entry List ({{g.driver_entry_list|length}})</h2>
   <table class="simple">
     <tr>
@@ -129,41 +86,42 @@
       <td colspan=11 style="text-align: left; background: #ffd">
         <form action="{{url_for('entries_page')}}" method='POST'>
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}" />
-          <p><label>Driver:</label>*<select name="driver_id" required>
+          <p><label>Driver:</label> <select name="driver_id" required>
             {% for driver in g.driver_list %}
             <option value="{{driver.driver_id}}" {{'selected' if entry.driver_id == driver.driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
             {% else %}
               <option disabled>None</option>
             {% endfor %}
-          </select></p>
-          <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" value="{{entry.co_driver if entry.co_driver}}" /></p>
-          <p><label>Car Year:</label> <input type="text" size=40 name="car_year" value="{{entry.car_year if entry.car_year}}" /></p>
-          <p><label>Car Make:</label> <input type="text" size=40 name="car_make" value="{{entry.car_make if entry.car_make}}" /></p>
-          <p><label>Car Model:</label> <input type="text" size=40 name="car_model" value="{{entry.car_model if entry.car_model}}" /></p>
-          <p><label>Car Color:</label> <input type="text" size=40 name="car_color" value="{{entry.car_color if entry.car_color}}" /></p>
-          <p><label>Car Number:</label>*<input type="number" min="0" max="1000" size=40 name="car_number" value="{{entry.car_number if entry.car_number}}" required /></p>
-
-          <p><label>Car Class:</label>*<select name="car_class" required >
+          </select> <b>Required</b></p>
+          <p><label>Car Number:</label> <input type="number" min="0" max="1000" size=40 name="car_number" value="{{entry.car_number if entry.car_number}}" required /> <b>Required</b></p>
+          <p><label>Car Class:</label> <select name="car_class" required >
             {% for car_class in g.rules.car_class_list %}
             <option value="{{car_class}}" {{'selected' if entry.car_class == car_class}}>{{car_class}}: {{g.rules.car_class_names[car_class]}}</option>
             {% else %}
             <option value="TO">TO: Time Only</option>
             {% endfor %}
-          </select></p>
-          <p><label>Season Points:</label> <select name="season_points">
-            <option value="0" {{'selected' if not entry.season_points}}>No</option>
-            <option value="1" {{'selected' if entry.season_points}}>Yes</option>
-          </select></p>
-          <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assignment" value="{{entry.work_assignment if entry.work_assignment}}"/></p>
+          </select> <b>Required</b></p>
+
+          <p><label>Car Color:</label> <input type="text" size=40 name="car_color" value="{{entry.car_color if entry.car_color}}" /></p>
+          <p><label>Car Year:</label> <input type="text" size=40 name="car_year" value="{{entry.car_year if entry.car_year}}" /></p>
+          <p><label>Car Make:</label> <input type="text" size=40 name="car_make" value="{{entry.car_make if entry.car_make}}" /></p>
+          <p><label>Car Model:</label> <input type="text" size=40 name="car_model" value="{{entry.car_model if entry.car_model}}" /></p>
+
+          <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" value="{{entry.co_driver if entry.co_driver}}" /></p>
+          <p><label>Note:</label> <input type="text" size=40 name="entry_note" value="{{entry.entry_note if entry.entry_note}}"/></p>
           <p><label>Show Scores:</label> <select name="scores_visible">
             <option value="0" {{'selected' if not entry.scores_visible}}>No</option>
             <option value="1" {{'selected' if entry.scores_visible}}>Yes</option>
           </select></p>
+          <!--<p><label>Season Points:</label> <select name="season_points">
+            <option value="0" {{'selected' if not entry.season_points}}>No</option>
+            <option value="1" {{'selected' if entry.season_points}}>Yes</option>
+          </select></p>-->
+          <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assignment" value="{{entry.work_assignment if entry.work_assignment}}"/></p>
           <p><label>Checked In:</label> <select name="checked_in">
             <option value="0" {{'selected' if not entry.checked_in}}>No</option>
             <option value="1" {{'selected' if entry.checked_in}}>Yes</option>
           </select></p>
-          <p><label>Note:</label> <input type="text" size=40 name="entry_note" value="{{entry.entry_note if entry.entry_note}}"/></p>
           <hr/>
           <button type="submit" name="action" value="update">Save Changes</button> - 
           [{{entry.entry_id}}]

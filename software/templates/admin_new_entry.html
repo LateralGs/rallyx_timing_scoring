@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
+  
+  tr:target {
+    background: #ffb;
+  }
+
+  button.big {
+    padding-top: 1em;
+    padding-bottom: 1em;
+    padding-left: 5em;
+    padding-right: 5em;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      {% if g.parent == 'registration' %}<a href="{{url_for('registration_page')}}">Registration</a>{% endif %}
+      {% if g.parent == 'entries' %}<a href="{{url_for('entries_page')}}">Entries</a>{% endif %}
+      <a class="menu_active" href="" title="Refresh">Add Entry</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
+
+  <div>
+    <h2>Add Entry</h2>
+    <form method='POST'>
+      <input type="hidden" name="parent" value="{{g.parent}}" />
+      <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
+      <!--{{g.default_driver_id}}-->
+      <fieldset><legend>&nbsp;Required&nbsp;</legend>
+      <p><label>Driver:</label> <select name="driver_id" required>
+        <option selected disabled>-- Select Driver --</option>
+        {% for driver in g.driver_list %}
+        <option value="{{driver.driver_id}}" {{'selected' if driver.driver_id == g.default_driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
+        {% else %}
+          <option disabled>None</option>
+        {% endfor %}
+      </select> <b>Required</b></p>
+      <p><label>Car Number:</label> <input type="number" min="0" max="1000" size=40 name="car_number" required /> <b>Required</b></p>
+      <p><label>Car Class:</label> <select name="car_class" required >
+        <option selected disabled>-- Select Class --</option>
+        {% for car_class in g.rules.car_class_list %}
+        <option value="{{car_class}}" >{{car_class}}: {{g.rules.car_class_names[car_class]}}</option>
+        {% else %}
+        <option value="TO">TO: Time Only</option>
+        {% endfor %}
+      </select> <b>Required</b></p>
+      </fieldset>
+      <br>
+      <fieldset>
+      <p><label>Car Color:</label> <input type="text" size=40 name="car_color" /></p>
+      <p><label>Car Year:</label> <input type="text" size=40 name="car_year" /></p>
+      <p><label>Car Make:</label> <input type="text" size=40 name="car_make" /></p>
+      <p><label>Car Model:</label> <input type="text" size=40 name="car_model" /></p>
+      </fieldset>
+      <br>
+      <fieldset>
+      <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" /> (sprints and stage only)</p>
+      <p><label>Note:</label> <input type="text" size=40 name="entry_note" /></p>
+
+      <!--
+      <p><label>Season Points:</label> <select name="season_points">
+        <option value="1" selected>Yes</option>
+        <option value="0" >No</option>
+      </select></p>
+      -->
+      <p><label>Show Scores:</label> <select name="scores_visible">
+        <option value="1" selected>Yes</option>
+        <option value="0" >No</option>
+      </select></p>
+      </fieldset>
+      <br>
+      <fieldset>
+      <p><label>Work Assignment:</label> <input type="text" size=40 name="work_assignment" /></p>
+      <p><label>Checked In:</label> <select name="checked_in">
+        <option value="1" >Yes</option>
+        <option value="0" selected>No</option>
+      </select></p>
+      </fieldset>
+      <br/>
+      <p><button class="big" type="submit" name="action" value="insert">Add Entry</button></p>
+    </form>
+  </div>
+</body>
+</html>
+

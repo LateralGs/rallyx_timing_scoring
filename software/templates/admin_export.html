@@ -28,14 +28,18 @@
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Export Scores</h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Export Scores</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <h3>Export types:</h3>
 
   <ul>
-    <li><a href="{{url_for('export_scores_page')}}">Scores in CSV format</a></li>
+    <li><a href="{{url_for('export_scores_csv_page')}}">Scores in CSV format</a></li>
   </ul>
   
 </body>

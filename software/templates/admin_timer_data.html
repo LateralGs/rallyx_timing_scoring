@@ -28,9 +28,13 @@
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Timer Data</h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Timer Data</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <h3>Legend:</h3>
   <ul>

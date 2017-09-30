@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Scoring Admin</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
+  <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 10em;
+    display: inline-block;
+  }
+  p {
+    margin: 2px;
+  }
+  tr:target {
+    background: #ffb;
+  }
+  
+  td.red {
+    background: #fbb;
+  }
+
+  td.green {
+    background: #bfb;
+  }
+  
+  button.big {
+    padding-top: 1em;
+    padding-bottom: 1em;
+    padding-left: 5em;
+    padding-right: 5em;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      {% if g.parent == 'registration' %}<a href="{{url_for('registration_page')}}">Registration</a>{% endif %}
+      {% if g.parent == 'drivers' %}<a href="{{url_for('drivers_page')}}">Drivers</a>{% endif %}
+      <a class="menu_active" href="" title="Refresh">Add Driver</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
+
+  <div>
+    <h2>Add Driver</h2>
+    <form method='POST'>
+      <input type="hidden" name="parent" value="{{g.parent}}" />
+      <fieldset>
+      <p><label>First Name: </label> <input type="text" size=40 name="first_name" required /> <b>Required</b></p>
+      <p><label>Last Name: </label> <input type="text" size=40 name="last_name" required /> <b>Required</b></p>
+      <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
+      </fieldset>
+      <br>
+      <fieldset>
+      <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" /> (alternate first name, ie. nickname)</p>
+      <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" /></p>
+      <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" /></p>
+      <p><label>License #:</label> <input type="text" size=40 name="license_number" /></p>
+      <p><label>Addr 1:</label> <input type="text" size=40 name="addr_line_1" /></p>
+      <p><label>Addr 2:</label> <input type="text" size=40 name="addr_line_2" /></p>
+      <p><label>City:</label> <input type="text" size=40 name="addr_city" /></p>
+      <p><label>State:</label> <input type="text" size=40 name="addr_state" /></p>
+      <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" /></p>
+      <p><label>Phone:</label> <input type="text" size=40 name="phone" /></p>
+      <p><label>Email:</label> <input type="text" size=40 name="email" /></p>
+      <p><label>Note:</label> <input type="text" size=40 name="driver_note" /></p>
+      </fieldset>
+      <br/>
+      <button class="big" type="submit" name="action" value="insert">Add Driver</button>
+    </form>
+  </div>
+</body>
+</html>
+

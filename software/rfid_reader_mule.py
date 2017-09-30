@@ -32,9 +32,9 @@ def handle_next_entry(db, data):
     play_sound('sounds/OutputFailure.wav')
     return
 
-  race_session = db.reg_get('race_session')
+  race_run_group = db.reg_get('race_run_group')
   active_event_id = db.reg_get('active_event_id')
-  entry_list = db.query_all("SELECT entry_id, race_session FROM driver_entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
+  entry_list = db.query_all("SELECT entry_id, race_run_group FROM driver_entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
   next_entry_id = None
 
   logging.debug("tracking_number = %r", data)
@@ -44,14 +44,14 @@ def handle_next_entry(db, data):
   else:
     # search for an entry matching the current session
     for entry in entry_list:
-      if entry['race_session'] == race_session:
+      if entry['race_run_group'] == race_run_group:
         next_entry_id = entry['entry_id']
         break
 
     if next_entry_id == None:
       # search for an entry matching any session
       for entry in entry_list:
-        if entry['race_session'] in ('-1', None,'*'):
+        if entry['race_run_group'] in ('-1', None,'*'):
           next_entry_id = entry['entry_id']
           break
     

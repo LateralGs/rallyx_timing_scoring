@@ -28,9 +28,15 @@
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Event Penalties</h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a href="{{url_for('timing_page')}}">Timing & Scoring</a>
+      <a href="{{url_for('scores_page')}}">Scoreboard</a>
+      <a class="menu_active" href="" title="Refresh">Penalties</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <h3>These penalties add to the event total regardless of scored runs</h3>
   <hr/>

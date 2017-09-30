@@ -1,18 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>ORG RallyX Live Scoring</title>
+  <title>Scoring Admin</title>
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+<style>
+  label {
+    width: 20em;
+    display: inline-block;
+  }
+</style>
 </head>
 <body>
-  <h1>Scoring Admin - Help</h2>
-  {% include 'admin_nav.html' %}
-  {% include 'flash_message.html' %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Access Control</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <div class="layout_box">
-    <p>Todo - Add instructions</p>
   </div>
 </body>
 </html>

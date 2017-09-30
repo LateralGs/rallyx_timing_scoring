@@ -14,14 +14,20 @@
     margin: 2px;
   }
   .active {
-    background: #dfd;
+    background: #ddf;
   }
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Events</h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Events</a>
+      <a href="{{url_for('drivers_page')}}">Drivers</a>
+      <a href="{{url_for('entries_page')}}">Entries</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <div>
     <h2>Add Event</h2>
@@ -33,7 +39,7 @@
       <p><label>Organization:</label> <input type="text" size=40 name="organization"/></p>
       <p><label>Rule Set:</label>*<select name="rule_set" required >
         {% for rule_set_id in g.rule_sets %}
-        <option value="{{rule_set_id}}">{{g.rule_sets[rule_set_id].name}}</option>
+        <option value="{{rule_set_id}}" {{'selected' if rule_set_id == g.default_rule_set}}>{{g.rule_sets[rule_set_id].name}}</option>
         {% endfor %}
       </select></p>
       <p><label>Max Runs:</label>
@@ -49,6 +55,7 @@
   </div>
   <hr/>
   <h2>Event List</h2>
+  {% if not g.event %}<h2 style="color: red">No active event!</h2>{% endif %}
   <table class="simple">
     <tr>
       <th colspan=2>Event</th>
@@ -59,14 +66,10 @@
       <th>Organization</th>
       <th class="nowrap">Rule Set</th>
       <th class="nowrap">Max Runs</th>
+      <th>State</th>
     </tr>
     <tr class="break"></tr>
     {% for event in g.event_list %}
-    {% if event.event_id == g.event['event_id'] %}
-    <tr>
-      <th colspan=12>Active Event</th>
-    </tr>
-    {% endif %}
     <tr class="{{'active' if event.event_id == g.event['event_id']}}" id="{{event.event_id}}">
       <td><button onclick='$("#edit_{{event.event_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{event.event_id}}").offset().top});'>Edit</button></td>
       <td>
@@ -86,6 +89,7 @@
       <td class="nowrap">{{event.organization}}</td>
       <td>{{event.rule_set}}</td>
       <td>{{event.max_runs}}</td>
+      <td style="color:red"><b>{{'ACTIVE' if event.event_id == g.event['event_id'] }}</b></td>
     </tr>
     <tr class="{{'active' if event.event_id == g.event['event_id']}}">
       <td colspan=2 style="text-align: right">Note:</td>

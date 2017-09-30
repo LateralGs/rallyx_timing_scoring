@@ -24,38 +24,27 @@
   td.green {
     background: #bfb;
   }
+  
+  button.big {
+    padding-top: 1em;
+    padding-bottom: 1em;
+    padding-left: 5em;
+    padding-right: 5em;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Drivers Database</h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Drivers</a>
+      <a href="{{url_for('entries_page')}}">Entries</a>
+      <a href="{{url_for('drivers_new_driver_page')}}">Add Driver</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
-  <div>
-    <h2>Add Driver</h2>
-    <form action="{{url_for('drivers_page')}}"  method='POST'>
-      <p><label>First Name: </label>*<input type="text" size=40 name="first_name" required /></p>
-      <p><label>Last Name: </label>*<input type="text" size=40 name="last_name" required /></p>
-      <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" /></p>
-      <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" /></p>
-      <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" /></p>
-      <p><label>License #:</label> <input type="text" size=40 name="license_number" /></p>
-      <p><label>Addr 1:</label> <input type="text" size=40 name="addr_line_1" /></p>
-      <p><label>Addr 2:</label> <input type="text" size=40 name="addr_line_2" /></p>
-      <p><label>City:</label> <input type="text" size=40 name="addr_city" /></p>
-      <p><label>State:</label> <input type="text" size=40 name="addr_state" /></p>
-      <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" /></p>
-      <p><label>Phone:</label> <input type="text" size=40 name="phone" /></p>
-      <p><label>Email:</label> <input type="text" size=40 name="email" /></p>
-      
-      <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
-
-      <p><label>Note:</label> <input type="text" size=40 name="driver_note" /></p>
-      <br/>
-      <p><label><b>* = required</b></label> <button type="submit" name="action" value="insert">Add Driver</button></p>
-    </form>
-  </div>
-  <hr/>
   <h2>Driver List ({{g.driver_list|length}})</h2>
   <i>Press Edit for more info.</i>
   <table class="simple">
@@ -80,8 +69,9 @@
       <td colspan=8 style="text-align: left; background: #ffd">
         <form action="{{url_for('drivers_page')}}"  method='POST'>
           <input type="hidden" name="driver_id" value="{{driver.driver_id}}" />
-          <p><label>First Name: </label>*<input type="text" size=40 name="first_name" value="{{driver.first_name if driver.first_name}}" required /></p>
-          <p><label>Last Name: </label>*<input type="text" size=40 name="last_name" value="{{driver.last_name if driver.last_name}}" required /></p>
+          <p><label>First Name: </label> <input type="text" size=40 name="first_name" value="{{driver.first_name if driver.first_name}}" required /> <b>Required</b></p>
+          <p><label>Last Name: </label> <input type="text" size=40 name="last_name" value="{{driver.last_name if driver.last_name}}" required /> <b>Required</b></p>
+          <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" value="{{driver.tracking_number if driver.tracking_number}}" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
           <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" value="{{driver.alt_name if driver.alt_name}}" /></p>
           <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" value="{{driver.msreg_number if driver.msreg_number}}" /></p>
           <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" value="{{driver.scca_number if driver.scca_number}}" /></p>
@@ -93,7 +83,6 @@
           <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" value="{{driver.addr_zip if driver.addr_zip}}" /></p>
           <p><label>Phone:</label> <input type="text" size=40 name="phone" value="{{driver.phone if driver.phone}}" /></p>
           <p><label>Email:</label> <input type="text" size=40 name="email" value="{{driver.email if driver.email}}" /></p>
-          <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" value="{{driver.tracking_number if driver.tracking_number}}" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
           <p><label>Note:</label> <input type="text" size=40 name="driver_note" value="{{driver.driver_note if driver.driver_note}}" /></p>
           <hr/>
           <button type="submit" name="action" value="update">Save Changes</button> -

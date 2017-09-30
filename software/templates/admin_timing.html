@@ -137,8 +137,31 @@
     user-select: none;
   }
 
+  .autorefresh {
+    border: 1px solid;
+    padding: 4px;
+    position: fixed;
+    right: 8px;
+    top: 8px;
+    width: 10.25em;
+    font-weight: bold;
+  }
+
+  .autorefresh_on {
+    color: #040;
+    border-color: #080;
+    background-color: #8f8;
+  }
+
+  .autorefresh_off {
+    color: #f88;
+    border-color: #f88;
+    background-color: white;
+  }
+
 </style>
 <script>
+var reload_timeout_id;
 
 function inc_val(i, v) {
   var num = parseInt(v);
@@ -165,6 +188,18 @@ function dec_val(i, v) {
 }
 
 $(document).ready(function(){
+  reload_timeout_id = setTimeout(function(){location.reload(true)}, 3000);
+
+  $('.autorefresh_disabled').hover(function(){
+    clearTimeout(reload_timeout_id);
+    $('.autorefresh').removeClass("autorefresh_on").addClass("autorefresh_off");
+    $('.autorefresh').text("AUTO REFRESH: OFF");
+  }, function(){ 
+    reload_timeout_id = setTimeout(function(){location.reload(true)}, 3000);
+    $('.autorefresh').removeClass("autorefresh_off").addClass("autorefresh_on");
+    $('.autorefresh').text("AUTO REFRESH: ON");
+  });
+
   /* Hide reset buttons by default */
   $( "form" ).focusin(function() {
     $(this).find(".reset_button").css("visibility","visible");
@@ -218,10 +253,17 @@ $(document).ready(function(){
 </head>
 <body>
   <header>
-  <h1>Scoring Admin - Timing & Scoring <a href="{{url_for('timing_page')}}">REFRESH</a></h2>
-  {% include 'admin_nav.html' %}
-  {% include 'flash_message.html' %}
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Timing & Scoring</a>
+      <a href="{{url_for('scores_page')}}">Scoreboard</a>
+      <a href="{{url_for('penalties_page')}}">Penalties</a>
+    </div>
+    <div class="autorefresh autorefresh_on">AUTO REFRESH: ON</div>
+    {% include 'flash_message.html' %}
   </header>
+
+  <div class="autorefresh_disabled">
 
   <div class="layout_box" style="padding-left: 16px; padding-right:16px">
     <table class="layout">
@@ -250,7 +292,7 @@ $(document).ready(function(){
             <select name="next">
               <option disabled selected>-- Select Entry --</option>
               {% for entry in g.driver_entry_list %}
-              {% if entry.race_session is none or entry.race_session == '-1' or entry.race_session == g.race_session %}
+              {% if entry.run_group is none or entry.run_group == '-1' or entry.run_group == g.run_group %}
               <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
               <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
               {% endif %}
@@ -293,7 +335,7 @@ $(document).ready(function(){
         <th>Entry</th>
         <th>Car</th>
         <th style="padding-right: 32px">Run</th>
-        <th class="nowrap">Current Session</th>
+        <th class="nowrap">Run Group</th>
       </tr>
       <tr>
         <td class="nowrap">
@@ -308,7 +350,7 @@ $(document).ready(function(){
           <br><span style="color: red; font-size: 1.1em; font-weight: bold">&nbsp;{{'LAST RUN!' if g.next_entry_run_number == g.event['max_runs']}}{{'EXTRA RUN!' if g.next_entry_run_number > g.event['max_runs']}} </span>
         </td>
         <td style="border-left: 1px solid gray; padding-left: 64px; padding-right: 64px;">
-          <input type="text" size=5 disabled value="{{g.race_session}}" style="text-align: center">
+          <input type="text" size=5 disabled value="{{g.run_group}}" style="text-align: center">
         </td>
       </tr>
     </table>
@@ -474,6 +516,8 @@ $(document).ready(function(){
     {% endfor %}
     <div><i>Change filter to view runs not listed.</i></div>
   </div>
+
+  </div><!-- noreload -->
 </body>
 </html>
 

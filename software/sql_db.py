@@ -6,7 +6,7 @@ import types
 #######################################
 
 # this number should match the schema_versions/version_NNN.sql file name used to init the db
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # used as global storage for table column names
 columns = {}
@@ -20,7 +20,10 @@ def dict_row_factory(cursor, row):
     d[col[0]] = row[idx] # column name indexing
   return d
 
-def SchemaVersionException(Exception):
+class SchemaVersionException(Exception):
+  pass
+
+class SchemaErrorException(Exception):
   pass
 
 def columns_exectrace(cursor, sql, bindings):
@@ -43,18 +46,19 @@ class ScoringDatabase(apsw.Connection):
     self._context_stack = 0 # used for nesting context manager calls using 'with' stantement
     self.setbusytimeout(10000) # 10 seconds
     self.setrowtrace(dict_row_factory)
-    self.check_schema()
+    try:
+      self.check_schema()
+    except SchemaErrorException:
+      self.init_schema()
     
 
   def check_schema(self):
     try:
       version = self.reg_get_int(".schema_version")
     except apsw.SQLError:
-      self.init_schema()
+      raise SchemaErrorException("SQLError")
     else:
-      if version is None:
-        self.init_schema()
-      elif version != SCHEMA_VERSION:
+      if version != SCHEMA_VERSION:
         raise SchemaVersionException("db_file=%r, software=%r" % (version, SCHEMA_VERSION))
 
   def init_schema(self):
@@ -147,6 +151,12 @@ class ScoringDatabase(apsw.Connection):
     row = self.cursor().execute(*args, **kwargs).fetchone()
     return row.values()[0] if row else None
 
+  def query_single_list(self, *args, **kwargs):
+    values = []
+    for row in self.cursor().execute(*args, **kwargs):
+      values.append(row.values()[0])
+    return values
+
   def select_one(self, _table_name, _order_by=None, _offset=None, **kwargs):
     sql = "SELECT * FROM %s WHERE 1 " % _table_name
     args = []
@@ -195,66 +205,105 @@ class ScoringDatabase(apsw.Connection):
 
   #### REGISTRY ####
 
-  def reg_exists(self, key):
-    return bool(self.cursor().execute("SELECT count(*) as count FROM registry WHERE key=?", (key,)).fetchone()['count'])
+  def reg_exists(self, key, event_id=None):
+    if event_id is None:
+      return bool(self.cursor().execute("SELECT count(*) as count FROM registry WHERE key=?", (key,)).fetchone()['count'])
+    else:
+      return bool(self.cursor().execute("SELECT count(*) as count FROM event_registry WHERE event_id=? AND key=?", (event_id, key)).fetchone()['count'])
 
-  def reg_set_default(self, key, value):
+  def reg_set_default(self, key, value, event_id=None):
     # this should not overwrite any existing registry values
-    self.cursor().execute("INSERT OR IGNORE INTO registry (key,value) VALUES (?,?)", (key,value))
+    if event_id is None:
+      self.cursor().execute("INSERT OR IGNORE INTO registry (key,value) VALUES (?,?)", (key, value))
+    else:
+      self.cursor().execute("INSERT OR IGNORE INTO event_registry (key,value,event_id) VALUES (?,?,?)", (key, value, event_id))
 
-  def reg_set(self, key, value):
-    self.cursor().execute("INSERT OR REPLACE INTO registry (key,value) VALUES (?,?)", (key,value))
+  def reg_set(self, key, value, event_id=None):
+    if event_id is None:
+      self.cursor().execute("INSERT OR REPLACE INTO registry (key,value) VALUES (?,?)", (key, value))
+    else:
+      self.cursor().execute("INSERT OR REPLACE INTO event_registry (key,value,event_id) VALUES (?,?,?)", (key, value, event_id))
 
-  def reg_get(self, key, default=None):
-    row = self.cursor().execute("SELECT value FROM registry WHERE key=?", (key,)).fetchone()
+  def reg_get(self, key, default=None, event_id=None):
+    if event_id is None:
+      row = self.cursor().execute("SELECT value FROM registry WHERE key=?", (key,)).fetchone()
+    else:
+      row = self.cursor().execute("SELECT value FROM event_registry WHERE event_id=? AND key=?", (event_id, key)).fetchone()
     if row is None:
       return default
     else:
       return row['value']
 
-  def reg_get_int(self, key, default=None):
+  def reg_get_int(self, key, default=None, event_id=None):
     try:
-      return int(self.reg_get(key))
+      return int(self.reg_get(key, event_id=event_id))
     except ValueError:
       return default
     except TypeError:
       return default
   
-  def reg_get_float(self, key, default=None):
+  def reg_get_float(self, key, default=None, event_id=None):
     try:
-      return float(self.reg_get(key))
+      return float(self.reg_get(key, event_id=event_id))
     except ValueError:
       return default
     except TypeError:
       return default
 
-  def reg_toggle(self, key, default=None):
-    self.cursor().execute("INSERT OR IGNORE INTO registry (key,value) VALUES (?,?); UPDATE registry SET value = NOT value WHERE key=?", (key,default,key))
-
-  def reg_inc(self, key):
-    self.cursor().execute("INSERT OR IGNORE INTO registry (key,value) VALUES (?,0); UPDATE registry SET value=value+1 WHERE key=?", (key,key))
-  
-  def reg_keys(self, hidden=False):
-    if hidden:
-      return map(lambda row: row['key'], self.cursor().execute("SELECT key FROM registry").fetchall())
+  def reg_toggle(self, key, default=None, event_id=None):
+    if event_id is None:
+      self.cursor().execute("INSERT OR IGNORE INTO registry (key,value) VALUES (?,?); UPDATE registry SET value = NOT value WHERE key=?", (key, default, key))
     else:
-      return map(lambda row: row['key'], self.cursor().execute("SELECT key FROM registry WHERE key NOT LIKE '.%'").fetchall())
+      self.cursor().execute("INSERT OR IGNORE INTO event_registry (key,value) VALUES (?,?); UPDATE event_registry SET value = NOT value WHERE event_id=? AND key=?", (key, default, event_id, key))
 
-  def reg_dict(self, hidden=False):
+  def reg_inc(self, key, event_id=None):
+    if event_id is None:
+      self.cursor().execute("INSERT OR IGNORE INTO registry (key,value) VALUES (?,0); UPDATE registry SET value=value+1 WHERE key=?", (key,key))
+    else:
+      self.cursor().execute("INSERT OR IGNORE INTO event_registry (key,value) VALUES (?,0); UPDATE event_registry SET value=value+1 WHERE event_id=? AND key=?", (key, event_id, key))
+  
+  def reg_keys(self, hidden=False, event_id=None):
+    if event_id is None:
+      if hidden:
+        return map(lambda row: row['key'], self.cursor().execute("SELECT key FROM registry").fetchall())
+      else:
+        return map(lambda row: row['key'], self.cursor().execute("SELECT key FROM registry WHERE key NOT LIKE '.%'").fetchall())
+    else:
+      if hidden:
+        return map(lambda row: row['key'], self.cursor().execute("SELECT key FROM event_registry WHERE event_id=?", (event_id,)).fetchall())
+      else:
+        return map(lambda row: row['key'], self.cursor().execute("SELECT key FROM event_registry WHERE event_id=? AND key NOT LIKE '.%'"(event_id,)).fetchall())
+
+
+  def reg_dict(self, hidden=False, event_id=None):
     result = {}
-    if hidden:
-      for row in self.cursor().execute("SELECT key, value FROM registry").fetchall():
-        result[row['key']] = row['value']
+    if event_id is None:
+      if hidden:
+        for row in self.cursor().execute("SELECT key, value FROM registry").fetchall():
+          result[row['key']] = row['value']
+      else:
+        for row in self.cursor().execute("SELECT key, value FROM registry WHERE key NOT LIKE '.%'").fetchall():
+          result[row['key']] = row['value']
     else:
-      for row in self.cursor().execute("SELECT key, value FROM registry WHERE key NOT LIKE '.%'").fetchall():
-        result[row['key']] = row['value']
+      if hidden:
+        for row in self.cursor().execute("SELECT key, value FROM event_registry WHERE event_id=?", (event_id,)).fetchall():
+          result[row['key']] = row['value']
+      else:
+        for row in self.cursor().execute("SELECT key, value FROM event_registry WHERE event_id=? AND key NOT LIKE '.%'", (event_id,)).fetchall():
+          result[row['key']] = row['value']
     return result
 
-  def reg_list(self, hidden=False):
-    if hidden:
-      return self.cursor().execute("SELECT key, value FROM registry").fetchall()
+  def reg_list(self, hidden=False, event_id=None):
+    if event_id is None:
+      if hidden:
+        return self.cursor().execute("SELECT key, value FROM registry").fetchall()
+      else:
+        return self.cursor().execute("SELECT key, value FROM registry WHERE key NOT LIKE '.%'").fetchall()
     else:
-      return self.cursor().execute("SELECT key, value FROM registry WHERE key NOT LIKE '.%'").fetchall()
+      if hidden:
+        return self.cursor().execute("SELECT key, value FROM event_registry WHERE event_id=?", (event_id,)).fetchall()
+      else:
+        return self.cursor().execute("SELECT key, value FROM event_registry WHERE event_id=? AND key NOT LIKE '.%'", (event_id,)).fetchall()
 
   #### OTHER ####
 
@@ -293,12 +342,13 @@ class ScoringDatabase(apsw.Connection):
     self.execute("UPDATE runs SET recalc=1 WHERE run_id=?", (run_id,))
     return self.changes()
   
-  def entry_session_update(self, event_id, car_class, race_session):
-    self.execute("UPDATE entries SET race_session=? WHERE event_id=? AND car_class=?", (race_session, event_id, car_class))
+  # FIXME change from session to run_group
+  def entry_run_group_update(self, event_id, car_class, run_group):
+    self.execute("UPDATE entries SET run_group=? WHERE event_id=? AND car_class=?", (run_group, event_id, car_class))
     return self.changes()
 
   def run_list(self, event_id=None, entry_id=None, state=None, max_run_id=None, limit=None, offset=None, sort='A'):
-    sql = "SELECT * FROM runs WHERE 1 "
+    sql = "SELECT * FROM runs WHERE deleted=0 "
     args = []
     if event_id is None and entry_id is None:
       raise Exception("Oops! missing event_id or entry_id")
@@ -332,7 +382,7 @@ class ScoringDatabase(apsw.Connection):
     return self.query_all(sql, args)
 
   def run_count(self, event_id=None, entry_id=None, state=None, max_run_id=None):
-    sql = "SELECT count(*) FROM runs WHERE 1 "
+    sql = "SELECT count(*) FROM runs WHERE deleted=0 "
     args = []
     if event_id is None and entry_id is None:
       raise Exception("Oops! missing event_id or entry_id")
@@ -361,7 +411,7 @@ class ScoringDatabase(apsw.Connection):
 
   def run_finished(self, event_id, time_ms):
     with self:
-      row = self.query_one("SELECT run_id FROM runs WHERE event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' ORDER BY run_id ASC LIMIT 1", (event_id, time_ms))
+      row = self.query_one("SELECT run_id FROM runs WHERE deleted=0 AND event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' ORDER BY run_id ASC LIMIT 1", (event_id, time_ms))
       if row is None:
         return None
       self.execute("UPDATE runs SET finish_time_ms=?, state='finished' WHERE run_id = ?", (time_ms, row['run_id']))
@@ -369,14 +419,14 @@ class ScoringDatabase(apsw.Connection):
 
   def run_split_1(self, event_id, time_ms):
     with self:
-      row = self.query_one("SELECT run_id FROM runs WHERE event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' AND split_1_time_ms ISNULL ORDER BY run_id ASC LIMIT 1", (event_id, time_ms))
+      row = self.query_one("SELECT run_id FROM runs WHERE deleted=0 AND event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' AND split_1_time_ms ISNULL ORDER BY run_id ASC LIMIT 1", (event_id, time_ms))
       if row is None:
         return None
       self.execute("UPDATE runs SET split_1_time_ms=? WHERE run_id = ?", (time_ms, row['run_id']))
 
   def run_split_2(self, event_id, time_ms):
     with self:
-      row = self.query_one("SELECT run_id FROM runs WHERE event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' AND NOT split_1_time_ms ISNULL AND split_2_time_ms ISNULL ORDER BY run_id ASC LIMIT 1", (event_id, time_ms))
+      row = self.query_one("SELECT run_id FROM runs WHERE deleted=0 AND event_id=? AND NOT start_time_ms ISNULL AND start_time_ms > 0 AND start_time_ms <= ? AND state='started' AND NOT split_1_time_ms ISNULL AND split_2_time_ms ISNULL ORDER BY run_id ASC LIMIT 1", (event_id, time_ms))
       if row is None:
         return None
       self.execute("UPDATE runs SET split_2_time_ms=? WHERE run_id = ?", (time_ms, row['run_id']))

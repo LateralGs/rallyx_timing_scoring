@@ -30,9 +30,9 @@ def handle_next_entry(db, data):
     play_sound('sounds/OutputFailure.wav')
     return
 
-  race_session = db.reg_get('race_session')
+  run_group = db.reg_get('run_group')
   active_event_id = db.reg_get('active_event_id')
-  entry_list = db.query_all("SELECT entry_id, race_session FROM entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
+  entry_list = db.query_all("SELECT entry_id, run_group FROM entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
 
   if entry_list is None or len(entry_list) == 0:
     log.warning("No entry_id found")
@@ -42,21 +42,21 @@ def handle_next_entry(db, data):
 
     # search for an entry matching the current session
     for entry in entry_list:
-      if entry['race_session'] == race_session:
+      if entry['run_group'] == run_group:
         next_entry_id = entry['entry_id']
         break
 
     if next_entry_id == None:
       # search for an entry matching any session
       for entry in entry_list:
-        if entry['race_session'] in ('-1', None,'*'):
+        if entry['run_group'] in ('-1', None,'*'):
           next_entry_id = entry['entry_id']
           break
     
     if next_entry_id is None:
-      log.warning("No entry for current session found")
+      log.warning("No entry for current run group found")
       db.reg_set("next_entry_id", None)
-      db.reg_set("next_entry_msg", "Wrong Session!")
+      db.reg_set("next_entry_msg", "Wrong Run Group!")
     else:
       db.reg_set("next_entry_id", next_entry_id)
       db.reg_set("next_entry_msg", None)

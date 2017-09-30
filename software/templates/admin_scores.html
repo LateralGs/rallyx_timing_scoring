@@ -78,9 +78,15 @@
   </style>
 </head>
 <body>
-  <h1>Scoring Admin - Scoreboard <a href="{{url_for('scores_page')}}">REFRESH</a></h2>
-  {% include "admin_nav.html" %}
-  {% include "flash_message.html" %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a href="{{url_for('timing_page')}}">Timing & Scoring</a>
+      <a class="menu_active" href="" title="Refresh">Scoreboard</a>
+      <a href="{{url_for('penalties_page')}}">Penalties</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <div>
     <h2>Event Scores</h2>

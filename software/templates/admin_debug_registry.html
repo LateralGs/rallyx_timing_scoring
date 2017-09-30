@@ -10,15 +10,23 @@
     width: 20em;
     display: inline-block;
   }
+
+  input[type="text"] {
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
-  <h1>Scoring Admin - Debug - Registry</h2>
-  {% include 'admin_nav.html' %}
-  {% include 'flash_message.html' %}
+  <header>
+    <div class="menu">
+      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
+      <a class="menu_active" href="" title="Refresh">Debug Registry</a>
+    </div>
+    {% include 'flash_message.html' %}
+  </header>
 
   <div class="layout_box">
-    <h2>Do NOT edit these unless you know what your doing!</h2>
+    <h2>Do NOT edit these unless you know what you are doing!</h2>
     {% for row in reg_list %}
     <p>
       <form method="POST">
