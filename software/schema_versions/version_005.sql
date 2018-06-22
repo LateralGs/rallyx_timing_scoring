@@ -1,3 +1,4 @@
+-- Registry tables are generic key/value stores
 
 -- global registry table should never change
 CREATE TABLE registry (
@@ -13,22 +14,30 @@ CREATE TABLE event_registry (
   PRIMARY KEY ( event_id, key )
 );
 
+-- per driver registry entries
+CREATE TABLE driver_registry (
+  driver_id INTEGER NOT NULL,
+  key   TEXT NOT NULL,
+  value TEXT,
+  PRIMARY KEY ( driver_id, key )
+);
+
+-- per entry registry entries
+CREATE TABLE entry_registry (
+  entry_id INTEGER NOT NULL,
+  key   TEXT NOT NULL,
+  value TEXT,
+  PRIMARY KEY ( entry_id, key )
+);
+
+
 CREATE TABLE drivers (
   driver_id       INTEGER PRIMARY KEY, -- rowid
   first_name      TEXT,
   last_name       TEXT,
-  alt_name        TEXT, -- use this instead of first_name (nickname)
   msreg_number    TEXT,
   scca_number     TEXT,
   license_number  TEXT, -- competition or drivers license
-
-  addr_line_1     TEXT,
-  addr_line_2     TEXT,
-  addr_city       TEXT,
-  addr_state      TEXT,
-  addr_zip        TEXT,
-  phone           TEXT,
-  email           TEXT,
 
   driver_note     TEXT,
 
@@ -73,11 +82,10 @@ CREATE VIEW driver_entries AS SELECT
   entries.*,
   drivers.first_name,
   drivers.last_name,
-  drivers.alt_name,
   drivers.tracking_number
   FROM drivers, entries 
   WHERE drivers.driver_id == entries.driver_id AND NOT drivers.deleted AND NOT entries.deleted
-  ORDER BY drivers.last_name, drivers.first_name, drivers.alt_name;
+  ORDER BY drivers.last_name, drivers.first_name;
 
 CREATE TABLE runs (
   run_id          INTEGER PRIMARY KEY, -- rowid
@@ -111,7 +119,7 @@ CREATE TABLE runs (
   timestamp       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP -- used for sorting and merging
 );
 
-CREATE TABLE times ( -- time events from external timing equipment
+CREATE TABLE times ( -- times triggered from external timing equipment
   time_id       INTEGER PRIMARY KEY, -- rowid
   event_id      INTEGER,
   channel       TEXT,
@@ -129,10 +137,6 @@ CREATE TABLE events (
   organization  TEXT,
   event_date    TEXT, -- RFC3339 format date YYYY-MM-DD
   season_name   TEXT,
-
-  -- possibly remove --
-  season_points INT   DEFAULT 1,
-  -- possibly remove --
 
   event_note    TEXT,
   max_runs      INT,
@@ -153,24 +157,5 @@ CREATE TABLE penalties (
 
   deleted       INT   NOT NULL DEFAULT 0, -- used instead of deleting from database
   timestamp     TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP -- used for sorting and merging
-);
-
--- access control user requests
-CREATE TABLE access_control_users (
-  user_id       INTEGER PRIMARY KEY, -- rowid
-  access_code   INTEGER NOT NULL, -- random 2 factor code for access requests
-  session_uuid  INTEGER NOT NULL,
-  allowed       INT DEFAULT 0,
-  remote_addr   TEXT,
-  user_agent    TEXT,
-  user_note     TEXT
-);
-
--- access control host permissions
-CREATE TABLE access_control_permissions (
-  user_id     INTEGER NOT NULL,
-  name        TEXT NOT NULL,
-  allowed     INT DEFAULT 0,
-  PRIMARY KEY ( user_id, name )
 );
 

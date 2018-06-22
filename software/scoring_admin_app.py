@@ -106,40 +106,44 @@ def get_rules(event):
     return None
 
 
-def new_access_code(db):
-  # search for unique access code
-  access_code = random.randint(1000,9999)
-  while db.query_single("SELECT count(*) FROM access_control_users WHERE access_code=?", (access_code,)):
-    access_code = (access_code + random.randint(1,999)) % 10000
-  return access_code
+#def new_access_code(db):
+#  # search for unique access code
+#  access_code = random.randint(1000,9999)
+#  while db.query_single("SELECT count(*) FROM access_control_users WHERE access_code=?", (access_code,)):
+#    access_code = (access_code + random.randint(1,999)) % 10000
+#  return access_code
 
 
 @app.before_request
-def access_control_host_check():
-  db = get_db()
-  # allow localhost connections on port 8020
-  if request.host in ('localhost:8020','127.0.0.1:8020') and request.remote_addr in ('localhost', '127.0.0.1'):
-    logging.debug("local connection, auth ok")
-    g.user = {'local':True}
-    return # allow host
-  else:
-    g.user = db.select_one('access_control_users', session_uuid=session.get('uuid'))
-    if g.user is None:
-      logging.debug("remote connection, new host")
-      session['uuid'] = str(uuid.uuid4())
-      session.permanent = True
-      g.user = {'access_code': new_access_code(db), 'local':False}
-      db.insert('access_control_users', session_uuid=session['uuid'], remote_addr=request.remote_addr, access_code=g.user['access_code'], user_agent=request.user_agent.string)
-      return render_template('admin_access_denied.html')
-    elif g.user['allowed']:
-      g.user['local'] = False
-      g.user['perm'] = db.query_single_list("SELECT name FROM access_control_permissions WHERE user_id=? AND allowed", (g.user['user_id'],))
-      logging.debug("remote connection, host ok")
-      return # allow host
-    else:
-      g.user['local'] = False
-      logging.debug("remote connection, host denied")
-      return render_template('admin_access_denied.html')
+def auth_check():
+  logging.debug(request.authorization)
+
+#@app.before_request
+#def access_control_host_check():
+#  db = get_db()
+#  # allow localhost connections on port 8020
+#  if request.host in ('localhost:8020','127.0.0.1:8020') and request.remote_addr in ('localhost', '127.0.0.1'):
+#    logging.debug("local connection, auth ok")
+#    g.user = {'local':True}
+#    return # allow host
+#  else:
+#    g.user = db.select_one('access_control_users', session_uuid=session.get('uuid'))
+#    if g.user is None:
+#      logging.debug("remote connection, new host")
+#      session['uuid'] = str(uuid.uuid4())
+#      session.permanent = True
+#      g.user = {'access_code': new_access_code(db), 'local':False}
+#      db.insert('access_control_users', session_uuid=session['uuid'], remote_addr=request.remote_addr, access_code=g.user['access_code'], user_agent=request.user_agent.string)
+#      return render_template('admin_access_denied.html')
+#    elif g.user['allowed']:
+#      g.user['local'] = False
+#      g.user['perm'] = db.query_single_list("SELECT name FROM access_control_permissions WHERE user_id=? AND allowed", (g.user['user_id'],))
+#      logging.debug("remote connection, host ok")
+#      return # allow host
+#    else:
+#      g.user['local'] = False
+#      logging.debug("remote connection, host denied")
+#      return render_template('admin_access_denied.html')
 
 
 #######################################
@@ -160,7 +164,6 @@ def menu_page():
 @app.route('/rest/<action>')
 def rest_page(action):
   pass
-
 
 
 #######################################
@@ -197,24 +200,90 @@ def registration_page():
 
 #######################################
 
+@app.route('/start_control', methods=['GET','POST'])
+def start_control_page():
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+  
+  if g.event is None:
+    flash("No active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+  if g.rules is None:
+    flash("Invalid rule set for active event!", F_ERROR)
+    return redirect(url_for('events_page'))
 
-@app.route('/access_control', methods=['GET','POST'])
-def access_control_page():
-  # only local connections can change access controls
-  if not g.user['local'] and 'admin' not in g.user['perm']:
-    return render_template('admin_access_denied.html')
+  action = request.form.get('action')
+  if action == 'set':
+    if request.form.get('entry_id'):
+      db.reg_set('next_entry_id',request.form.get('entry_id'))
+      db.reg_set('next_entry_msg', None)
+    return redirect(url_for('start_control_page'))
+  elif action == 'clear':
+    db.reg_set('next_entry_id', None)
+    db.reg_set('next_entry_msg', None)
+    return redirect(url_for('start_control_page'))
+  elif action == 'scan':
+    try:
+      tracking_number = int(request.form.get('tracking_number'))
+    except ValueError:
+      logging.warning("Invalid tracking number")
+      play_sound('sounds/OutputFailure.wav')
+      return redirect(url_for('start_control_page'))
 
-  # FIXME TODO
-  flash("Feature not implemented!",F_ERROR)
+    run_group = db.reg_get('run_group')
+    active_event_id = db.reg_get('active_event_id')
+    entry_list = db.query_all("SELECT entry_id, run_group FROM driver_entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
+    next_entry_id = None
 
-  return redirect(url_for('menu_page'))
-  #return render_template('admin_access_control.html')
+    logging.debug("tracking_number = %r", tracking_number)
 
+    if entry_list is None or len(entry_list) == 0:
+      logging.warning("No entry_id found")
+    else:
+      # search for an entry matching the current session
+      for entry in entry_list:
+        if entry['run_group'] == run_group:
+          next_entry_id = entry['entry_id']
+          break
 
-@app.route('/next_entry', methods=['GET','POST'])
-def next_entry_page():
-  flash("Feature not implemented!",F_ERROR)
-  return redirect(url_for('menu_page'))
+      if next_entry_id == None:
+        # search for an entry matching any session
+        for entry in entry_list:
+          if entry['run_group'] in ('-1', None,'*'):
+            next_entry_id = entry['entry_id']
+            break
+      
+    if next_entry_id is None:
+      logging.warning("No entry for current session found")
+      db.reg_set("next_entry_id", None)
+      db.reg_set("next_entry_msg", "Invalid tracking_number or wrong session!")
+      play_sound('sounds/OutputFailure.wav')
+    else:
+      db.reg_set("next_entry_id", next_entry_id)
+      db.reg_set("next_entry_msg", None)
+      logging.info("Set next_entry_id, %r", next_entry_id)
+      play_sound('sounds/OutputComplete.wav')
+    return redirect(url_for('start_control_page'))
+
+  elif action is not None:
+    flash("Invalid form action %r" % action, F_ERROR)
+    return redirect(url_for('start_control_page'))
+
+  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+
+  g.next_entry_id = db.reg_get_int('next_entry_id')
+  g.next_entry_driver = db.select_one('driver_entries', entry_id=g.next_entry_id)
+  if g.next_entry_id is None:
+    g.next_entry_run_number = None
+  else:
+    # FIXME change this to max of run_number instead of count
+    g.next_entry_run_number = 1 + db.run_count(entry_id=g.next_entry_id, state=('started','finished','scored'))
+
+  g.run_group = db.reg_get('run_group')
+  g.next_entry_msg = db.reg_get('next_entry_msg')
+
+  return render_template('admin_start_control.html')
   
 
 #######################################
@@ -1252,7 +1321,6 @@ def export_scores_csv_page():
   row.append('car_class')
   row.append('car_number')
   row.append('first_name')
-  row.append('alt_name')
   row.append('last_name')
   row.append('car_year')
   row.append('car_make')
@@ -1277,7 +1345,6 @@ def export_scores_csv_page():
         row.append(entry['car_class'])
         row.append(entry['car_number'])
         row.append(entry['first_name'])
-        row.append(entry['alt_name'])
         row.append(entry['last_name'])
         row.append(entry['car_year'])
         row.append(entry['car_make'])
@@ -1319,9 +1386,6 @@ def export_scores_csv_page():
 
 @app.route('/debug', methods=['GET','POST'])
 def debug_registry_page():
-  if not g.user['local']:
-    return render_template('admin_access_denied.html')
-
   db = get_db()
   if request.method == 'POST' and request.form.get('action') == 'update':
     for key in request.form:

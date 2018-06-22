@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -47,7 +48,7 @@
       <p><label>Entry:</label>*<select name="entry_id" required>
         <option disabled selected>-- Select Entry --</option>
         {% for entry in g.driver_entry_list %}
-        <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+        <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
         <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
         {% else %}
         <option disabled>None</option>
@@ -85,7 +86,7 @@
         <select name="entry_id" required>
           <option disabled selected>-- Select Entry --</option>
           {% for entry in g.driver_entry_list %}
-          <option value="{{entry.entry_id}}" {{'selected' if entry.entry_id == penalty.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+          <option value="{{entry.entry_id}}" {{'selected' if entry.entry_id == penalty.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
           <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
           {% else %}
           <option disabled>None</option>

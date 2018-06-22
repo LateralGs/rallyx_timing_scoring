@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -41,7 +42,7 @@
       <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
       <a href="{{url_for('drivers_page')}}">Drivers</a>
       <a class="menu_active" href="" title="Refresh">Entries</a>
-      <a href="{{url_for('entries_new_entry_page')}}">Add Entry</a>
+      <a style="background: #bfb" href="{{url_for('entries_new_entry_page')}}">Add Entry</a>
     </div>
     {% include 'flash_message.html' %}
   </header>
@@ -57,7 +58,7 @@
       <th class="nowrap">Tracking #</th>
       <th class="nowrap">Checked In</th>
       <th class="nowrap">Work Assignment</th>
-      <th class="nowrap">Race Session</th>
+      <th class="nowrap">Run Group</th>
       <th class="nowrap">Note</th>
     </tr>
     <tr class="break"></tr>
@@ -73,12 +74,12 @@
       </td>
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
-      <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
+      <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{entry.last_name}}</a></td>
       <td class="nowrap">{{entry.co_driver}}</td>
       <td class="{{'green' if entry.tracking_number else 'red'}}">{{entry.tracking_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
       <td>{{entry.work_assignment}}</td>
-      <td>{{'Any' if entry.race_session == '-1' or entry.race_session is none else entry.race_session}}</td>
+      <td>{{'Any' if entry.run_group == '-1' or entry.run_group is none else entry.run_group}}</td>
       <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
     <tr>
     </tr>
@@ -88,7 +89,7 @@
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}" />
           <p><label>Driver:</label> <select name="driver_id" required>
             {% for driver in g.driver_list %}
-            <option value="{{driver.driver_id}}" {{'selected' if entry.driver_id == driver.driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
+            <option value="{{driver.driver_id}}" {{'selected' if entry.driver_id == driver.driver_id}}>{{driver.first_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
             {% else %}
               <option disabled>None</option>
             {% endfor %}

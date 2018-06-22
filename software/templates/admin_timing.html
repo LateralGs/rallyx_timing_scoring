@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=1024px, initial-scale=0.75">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <link rel="stylesheet" type="text/css" href="../static/style.css" />
@@ -188,8 +189,9 @@ function dec_val(i, v) {
 }
 
 $(document).ready(function(){
+/*
+// disable for now, causes issues in tablets without a cursor
   reload_timeout_id = setTimeout(function(){location.reload(true)}, 3000);
-
   $('.autorefresh_disabled').hover(function(){
     clearTimeout(reload_timeout_id);
     $('.autorefresh').removeClass("autorefresh_on").addClass("autorefresh_off");
@@ -199,7 +201,7 @@ $(document).ready(function(){
     $('.autorefresh').removeClass("autorefresh_off").addClass("autorefresh_on");
     $('.autorefresh').text("AUTO REFRESH: ON");
   });
-
+*/
   /* Hide reset buttons by default */
   $( "form" ).focusin(function() {
     $(this).find(".reset_button").css("visibility","visible");
@@ -259,7 +261,7 @@ $(document).ready(function(){
       <a href="{{url_for('scores_page')}}">Scoreboard</a>
       <a href="{{url_for('penalties_page')}}">Penalties</a>
     </div>
-    <div class="autorefresh autorefresh_on">AUTO REFRESH: ON</div>
+    <!--<div class="autorefresh autorefresh_on">AUTO REFRESH: ON</div>-->
     {% include 'flash_message.html' %}
   </header>
 
@@ -293,7 +295,7 @@ $(document).ready(function(){
               <option disabled selected>-- Select Entry --</option>
               {% for entry in g.driver_entry_list %}
               {% if entry.run_group is none or entry.run_group == '-1' or entry.run_group == g.run_group %}
-              <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+              <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
               <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
               {% endif %}
               {% else %}
@@ -339,7 +341,7 @@ $(document).ready(function(){
       </tr>
       <tr>
         <td class="nowrap">
-          <input type="text" size=45 disabled value="{{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{'('+g.next_entry_driver.alt_name+')' if g.next_entry_driver.alt_name}} {{g.next_entry_driver.last_name}}" style="text-align: center">
+          <input type="text" size=45 disabled value="{{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{g.next_entry_driver.last_name}}" style="text-align: center">
           <br><span style="color: red; font-size: 1.1em; font-weight: bold">&nbsp;{{g.next_entry_msg if g.next_entry_msg}}</span>
         </td>
         <td class="nowrap">
@@ -364,7 +366,7 @@ $(document).ready(function(){
       <option value="noassign" {{'selected' if session.entry_filter=='noassign'}}>No Entry Assigned</option>
       <optgroup label="Entries">
       {% for entry in g.driver_entry_list %}
-      <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}} >{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+      <option value="{{entry.entry_id}}" {{'selected' if session.entry_filter==entry.entry_id}} >{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
       <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
       {% else %}
       <option disabled>None</option>
@@ -474,7 +476,7 @@ $(document).ready(function(){
                 <option value="">-- None --</option>
                 <option disabled></option>
                 {% for entry in g.driver_entry_list %}
-                <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</option>
+                <option value="{{entry.entry_id}}" {{'selected' if run.entry_id==entry.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
                 <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
                 {% endfor %}
               </select>

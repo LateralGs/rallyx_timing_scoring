@@ -17,7 +17,7 @@ class DefaultRules(object):
   name = "Default Rally Cross Rules"
 
   # default rule settings
-  car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR'] # short identifiers in prefered sort order
+  car_class_list = ['TO','SA','PA','MA','SF','PF','MF','SR','PR','MR','C4','C2'] # short identifiers in prefered sort order
   car_class_names = { # long display names
     'SA':'Stock All',
     'PA':'Prepared All',
@@ -28,6 +28,8 @@ class DefaultRules(object):
     'SR':'Stock Rear',
     'PR':'Prepared Rear',
     'MR':'Modified Rear',
+    'C4':'Constructors 4WD',
+    'C2':'Constructors 2WD',
     'TO':'Time Only',
     }
   car_class_alias = {} # used for assigning alternate names for classes, useful for importing

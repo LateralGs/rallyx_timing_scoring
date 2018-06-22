@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -41,7 +42,7 @@
       <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
       {% if g.parent == 'registration' %}<a href="{{url_for('registration_page')}}">Registration</a>{% endif %}
       {% if g.parent == 'entries' %}<a href="{{url_for('entries_page')}}">Entries</a>{% endif %}
-      <a class="menu_active" href="" title="Refresh">Add Entry</a>
+      <!--<a class="menu_active" href="" title="Refresh">Refresh</a>-->
     </div>
     {% include 'flash_message.html' %}
   </header>
@@ -56,7 +57,7 @@
       <p><label>Driver:</label> <select name="driver_id" required>
         <option selected disabled>-- Select Driver --</option>
         {% for driver in g.driver_list %}
-        <option value="{{driver.driver_id}}" {{'selected' if driver.driver_id == g.default_driver_id}}>{{driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
+        <option value="{{driver.driver_id}}" {{'selected' if driver.driver_id == g.default_driver_id}}>{{driver.first_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
         {% else %}
           <option disabled>None</option>
         {% endfor %}

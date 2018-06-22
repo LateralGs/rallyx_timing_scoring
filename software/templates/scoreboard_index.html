@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>RallyX Live Scoring</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
 
@@ -123,9 +124,9 @@
   <div>
     <a name="top" />
     {% if g.rules.drop_runs > 0 %}
-    <div>Tip: () marks Drop Runs</div>
+    <div>Note: () marks Drop Runs</div>
     {% endif %}
-    <div>Tip: Use checkbox to highlight rows</div>
+    <div>Note: Use checkbox to highlight rows</div>
 
     <table class="scores">
       {% for car_class in g.rules.car_class_list if car_class in g.class_entry_list %}
@@ -163,7 +164,7 @@
           <td>{{entry.car_class}}</td>
           <td>{{entry.car_number}}</td>
           <td class="driver_name">
-            {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}
+            {{entry.first_name}} {{entry.last_name}}
             {% if entry.co_driver %}
             / <small>{{ entry.co_driver}}</small>
             {% endif %}

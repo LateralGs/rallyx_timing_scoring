@@ -2,17 +2,15 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
-<style>
-</style>
 </head>
 <body>
   <h1>Scoring Admin</h1>
   {% include 'flash_message.html' %}
   <div class="menu">
-    {% if g.user['local'] or 'registration' in g.user['perm'] %}
     <!--<a href="{{url_for('registration_page')}}">Registration</a> - Event registration helper<br>-->
     <a href="{{url_for('drivers_page')}}">Drivers</a> - Driver database<br>
     <a href="{{url_for('entries_page')}}">Entries</a> - Entries for current event<br>
@@ -20,8 +18,6 @@
     <a href="{{url_for('events_page')}}">Events</a> - Create or edit Events<br>
     <a href="{{url_for('run_groups_page')}}">Run Groups</a> - Run groups for current event<br>
     <a href="{{url_for('import_page')}}">Import Entries</a> - Import entries for current event<br>
-    {% endif %}
-    {% if g.user['local'] or 'scoring' in g.user['perm'] %}
     <hr width="25%" align="left">
     <a href="{{url_for('timing_page')}}">Timing & Scoring</a> - Main scoring page<br>
     <a href="{{url_for('scores_page')}}">Scoreboard</a> - Scores for current event<br>
@@ -29,18 +25,12 @@
     <a href="{{url_for('timer_data_page')}}">Timer Data</a> - Timer event data<br>
     <hr width="25%" align="left">
     <a href="{{url_for('export_page')}}">Export Scores</a> - Export scores for current event<br>
-    {% endif %}
-    {% if g.user['local'] or 'start' in g.user['perm'] %}
     <hr width="25%" align="left">
-    <a href="{{url_for('next_entry_page')}}">Start Control</a> - Select next entry at start<br>
-    {% endif %}
-    {% if g.user['local'] or 'admin' in g.user['perm'] %}
+    <a href="{{url_for('start_control_page')}}">Start Control</a> - Select next entry at start<br>
     <hr width="25%" align="left">
     <a href="{{url_for('settings_page')}}">Settings</a> - System settings<br>
-    <a href="{{url_for('access_control_page')}}">Access Control</a> - Edit remote access settings<br>
     <hr width="25%" align="left">
     <a href="{{url_for('debug_registry_page')}}">Debug</a><br>
-    {% endif %}
   </div>
 </body>
 </html>

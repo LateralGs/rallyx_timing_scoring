@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -40,7 +41,7 @@
       <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
       {% if g.parent == 'registration' %}<a href="{{url_for('registration_page')}}">Registration</a>{% endif %}
       {% if g.parent == 'drivers' %}<a href="{{url_for('drivers_page')}}">Drivers</a>{% endif %}
-      <a class="menu_active" href="" title="Refresh">Add Driver</a>
+      <!--<a class="menu_active" href="" title="Refresh">Refresh</a>-->
     </div>
     {% include 'flash_message.html' %}
   </header>
@@ -56,17 +57,9 @@
       </fieldset>
       <br>
       <fieldset>
-      <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" /> (alternate first name, ie. nickname)</p>
       <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" /></p>
       <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" /></p>
       <p><label>License #:</label> <input type="text" size=40 name="license_number" /></p>
-      <p><label>Addr 1:</label> <input type="text" size=40 name="addr_line_1" /></p>
-      <p><label>Addr 2:</label> <input type="text" size=40 name="addr_line_2" /></p>
-      <p><label>City:</label> <input type="text" size=40 name="addr_city" /></p>
-      <p><label>State:</label> <input type="text" size=40 name="addr_state" /></p>
-      <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" /></p>
-      <p><label>Phone:</label> <input type="text" size=40 name="phone" /></p>
-      <p><label>Email:</label> <input type="text" size=40 name="email" /></p>
       <p><label>Note:</label> <input type="text" size=40 name="driver_note" /></p>
       </fieldset>
       <br/>

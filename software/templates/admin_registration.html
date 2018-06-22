@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -75,12 +76,12 @@
       </td>
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
-      <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}</a></td>
+      <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{entry.last_name}}</a></td>
       <td class="nowrap">{{entry.co_driver}}</td>
       <td class="{{'green' if entry.tracking_number else 'red'}}">{{entry.tracking_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
       <td>{{entry.work_assignment}}</td>
-      <td>{{'Any' if entry.race_session == '-1' or entry.race_session is none else entry.run_group}}</td>
+      <td>{{'Any' if entry.run_group == '-1' or entry.run_group is none else entry.run_group}}</td>
       <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
     <tr>
     </tr>
@@ -106,7 +107,7 @@
     <a name="{{driver.driver_id}}" />
     <tr id="{{driver.driver_id}}">
       <td><button onclick='$("#edit_{{driver.driver_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{driver.driver_id}}").offset().top});'>Edit</button></td>
-      <td class="nowrap">{{driver.first_name if driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}}</td>
+      <td class="nowrap">{{driver.first_name if driver.first_name}}</td>
       <td class="nowrap">{{driver.last_name if driver.last_name}}</td>
       <td class="nowrap {{'green' if driver.tracking_number else 'red'}}">{{driver.tracking_number if driver.tracking_number}}</td>
       <td style="text-align: left">{{driver.driver_note if driver.driver_note}}</td>

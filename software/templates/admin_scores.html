@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -127,7 +128,7 @@
           <td><a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">{{entry.car_number}}</a></td>
           <td class="driver_name">
             <a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">
-              {{entry.first_name}} {{'('+entry.alt_name+')' if entry.alt_name}} {{entry.last_name}}
+              {{entry.first_name}} {{entry.last_name}}
               {% if entry.co_driver %}
               <br/><small>{{ entry.co_driver}}</small>
               {% endif %}

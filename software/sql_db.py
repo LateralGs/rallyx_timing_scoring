@@ -2,6 +2,7 @@ import apsw
 import logging
 from util import format_time, time_cmp
 import types
+import os
 
 #######################################
 
@@ -42,19 +43,19 @@ class ScoringDatabase(apsw.Connection):
       self.log = logging.getLogger(__name__)
     else:
       self.log = logger
+    new_file = not os.path.exists(path)
     super(ScoringDatabase,self).__init__(path)
     self._context_stack = 0 # used for nesting context manager calls using 'with' stantement
     self.setbusytimeout(10000) # 10 seconds
     self.setrowtrace(dict_row_factory)
-    try:
-      self.check_schema()
-    except SchemaErrorException:
+    if new_file:
       self.init_schema()
-    
+    else:
+      self.check_schema()
 
   def check_schema(self):
     try:
-      version = self.reg_get_int(".schema_version")
+      version = self.execute("PRAGMA user_version").fetchone()['user_version']
     except apsw.SQLError:
       raise SchemaErrorException("SQLError")
     else:
@@ -66,10 +67,8 @@ class ScoringDatabase(apsw.Connection):
     with open("schema_versions/version_%03d.sql" % SCHEMA_VERSION) as sql_file:
       cur.execute(sql_file.read())
 
-    # default registry settings
-    self.reg_set_default('.schema_version', SCHEMA_VERSION)
-
     # set database options
+    cur.execute("PRAGMA user_version=%d" % SCHEMA_VERSION)
     cur.execute("PRAGMA journal_mode=wal")
 
   # change default behaviour for context handlers to use begin immediate instead of savepoint that uses defered
@@ -342,7 +341,6 @@ class ScoringDatabase(apsw.Connection):
     self.execute("UPDATE runs SET recalc=1 WHERE run_id=?", (run_id,))
     return self.changes()
   
-  # FIXME change from session to run_group
   def entry_run_group_update(self, event_id, car_class, run_group):
     self.execute("UPDATE entries SET run_group=? WHERE event_id=? AND car_class=?", (run_group, event_id, car_class))
     return self.changes()

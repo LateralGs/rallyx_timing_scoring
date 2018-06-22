@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <title>Scoring Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
   <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
@@ -40,7 +41,7 @@
       <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
       <a class="menu_active" href="" title="Refresh">Drivers</a>
       <a href="{{url_for('entries_page')}}">Entries</a>
-      <a href="{{url_for('drivers_new_driver_page')}}">Add Driver</a>
+      <a style="background: #bfb" href="{{url_for('drivers_new_driver_page')}}">Add Driver</a>
     </div>
     {% include 'flash_message.html' %}
   </header>
@@ -60,7 +61,7 @@
     <a name="{{driver.driver_id}}" />
     <tr id="{{driver.driver_id}}">
       <td><button onclick='$("#edit_{{driver.driver_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{driver.driver_id}}").offset().top});'>Edit</button></td>
-      <td class="nowrap">{{driver.first_name if driver.first_name}} {{'('+driver.alt_name+')' if driver.alt_name}}</td>
+      <td class="nowrap">{{driver.first_name if driver.first_name}}</td>
       <td class="nowrap">{{driver.last_name if driver.last_name}}</td>
       <td class="nowrap {{'green' if driver.tracking_number else 'red'}}">{{driver.tracking_number if driver.tracking_number}}</td>
       <td style="text-align: left">{{driver.driver_note if driver.driver_note}}</td>
@@ -72,17 +73,9 @@
           <p><label>First Name: </label> <input type="text" size=40 name="first_name" value="{{driver.first_name if driver.first_name}}" required /> <b>Required</b></p>
           <p><label>Last Name: </label> <input type="text" size=40 name="last_name" value="{{driver.last_name if driver.last_name}}" required /> <b>Required</b></p>
           <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" value="{{driver.tracking_number if driver.tracking_number}}" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
-          <p><label>Alternate Name:</label> <input type="text" size=40 name="alt_name" value="{{driver.alt_name if driver.alt_name}}" /></p>
           <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" value="{{driver.msreg_number if driver.msreg_number}}" /></p>
           <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" value="{{driver.scca_number if driver.scca_number}}" /></p>
           <p><label>License #:</label> <input type="text" size=40 name="license_number" value="{{driver.license_number if driver.license_number}}" /></p>
-          <p><label>Addr 1:</label> <input type="text" size=40 name="addr_line_1" value="{{driver.addr_line_1 if driver.addr_line_1}}" /></p>
-          <p><label>Addr 2:</label> <input type="text" size=40 name="addr_line_2" value="{{driver.addr_line_2 if driver.addr_line_2}}" /></p>
-          <p><label>City:</label> <input type="text" size=40 name="addr_city" value="{{driver.addr_city if driver.addr_city}}" /></p>
-          <p><label>State:</label> <input type="text" size=40 name="addr_state" value="{{driver.addr_state if driver.addr_state}}" /></p>
-          <p><label>Zip:</label> <input type="text" size=40 name="addr_zip" value="{{driver.addr_zip if driver.addr_zip}}" /></p>
-          <p><label>Phone:</label> <input type="text" size=40 name="phone" value="{{driver.phone if driver.phone}}" /></p>
-          <p><label>Email:</label> <input type="text" size=40 name="email" value="{{driver.email if driver.email}}" /></p>
           <p><label>Note:</label> <input type="text" size=40 name="driver_note" value="{{driver.driver_note if driver.driver_note}}" /></p>
           <hr/>
           <button type="submit" name="action" value="update">Save Changes</button> -
