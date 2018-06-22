@@ -10,7 +10,7 @@ from configparser import ConfigParser
 
 config_defaults = {
   'host_ip': '10.10.10.10',
-  'interface': 'wlan1',
+  'interface': '',
   'iface_glob': '/sys/class/net/wlan*',
   'ssid': 'rallyx_scoring'
   }
@@ -21,10 +21,13 @@ re_bad_line = re.compile("(handle_probe_req: send failed|Failed to set beacon pa
 
 if __name__ == "__main__":
   # load configuration
-  config = ConfigParser(config_defaults, default_section="config")
+  config = ConfigParser()
+  config.add_section('config')
+  for key,value in config_defaults.items():
+    config.set('config',key,value)
   config.read("ap_config.ini")
 
-  if config.get('config','interface') is None:
+  if config.get('config','interface').strip() == '':
     print("Searching for iface_glob")
     path_list = glob(config.get('config','iface_glob'))
     if len(path_list) == 0:
