@@ -53,7 +53,7 @@ init_db.reg_set('run_group', 1)
 init_db.reg_set('next_entry_id', None)
 init_db.reg_set('next_entry_msg', None)
 init_db.close()
-del test_db
+del init_db
 
 # allows use of secure cookies for sessions
 try:
