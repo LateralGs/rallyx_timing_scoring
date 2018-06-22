@@ -44,9 +44,15 @@ try:
 except ImportError:
   raise ImportError("Unable to load scoring_config.py, please reference install instructions!")
 
-# this will implicitly test the db schema and init if needed
-test_db = ScoringDatabase(config.SCORING_DB_PATH)
-test_db.close()
+# make sure database is initialized and ready to go
+init_db = ScoringDatabase(config.SCORING_DB_PATH)
+# lets set some default state
+init_db.reg_set('disable_start', 0)
+init_db.reg_set('disable_finish', 0)
+init_db.reg_set('run_group', 1)
+init_db.reg_set('next_entry_id', None)
+init_db.reg_set('next_entry_msg', None)
+init_db.close()
 del test_db
 
 # allows use of secure cookies for sessions
@@ -774,6 +780,15 @@ def entries_page():
     flash("Entry checked in")
     return redirect(url_for('entries_page'))
 
+  elif action == 'check_out':
+    entry_id = request.form.get('entry_id')
+    if not db.entry_exists(entry_id):
+      flash("Invalid entry id", F_ERROR)
+      return redirect(url_for('entries_page'))
+    db.update('entries', entry_id, checked_in=0)
+    flash("Entry checked out")
+    return redirect(url_for('entries_page'))
+
   elif action == 'tracking_check_in':
     tracking_number = request.form.get('tracking_number')
     if tracking_number is not None:
@@ -790,7 +805,9 @@ def entries_page():
     flash("Invalid form action %r" % action, F_ERROR)
     return redirect(url_for('entries_page'))
 
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  #g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.driver_entry_list = db.select_all('driver_entries', deleted=0, event_id=g.event['event_id'], _order_by=('checked_in', 'car_class', 'first_name', 'last_name'))
+  
   g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
   
   # create lookup dict for driver_id's

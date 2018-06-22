@@ -69,7 +69,11 @@
       <td>
         <form action="{{url_for('entries_page')}}" method="POST">
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}">
-          <button type="submit" value="check_in" name="action">Check-In</button>
+          {% if entry.checked_in %}
+          <button type="submit" value="check_out" name="action">Check Out</button>
+          {% else %}
+          <button type="submit" value="check_in" name="action">Check In</button>
+          {% endif %}
         </form>
       </td>
       <td>{{entry.car_class}}</td>
@@ -132,8 +136,6 @@
       </td>
     </tr>
     <tr class="break"></tr>
-    {% else %}
-    <tr><td colspan=12>None</td></tr>
     {% endfor %}
   </table>
 </body>
