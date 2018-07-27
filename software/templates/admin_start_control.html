@@ -35,6 +35,7 @@
     font-weight: bold;
   }
 </style>
+
 </head>
 <body>
   <h2>RFID Scan</h2>
@@ -53,11 +54,11 @@
       </tr>
       <tr>
         <th>Entry:</th>
-        <td><input type="text" size=45 disabled value="{{g.next_entry_driver.car_class}} {{g.next_entry_driver.car_number}} {{g.next_entry_driver.first_name}} {{g.next_entry_driver.last_name}}" style="font-weight: bold; text-align: center"></td>
+        <td><input type="text" size=45 disabled value="{{g.next_entry.car_class}} {{g.next_entry.car_number}} {{g.next_entry.first_name}} {{g.next_entry.last_name}}" style="font-weight: bold; text-align: center"></td>
       </tr>
       <tr>
         <th>Car:</th>
-        <td><input type="text" size=45 disabled value="{{g.next_entry_driver.car_color}} {{g.next_entry_driver.car_year}} {{g.next_entry_driver.car_make}} {{g.next_entry_driver.car_model}}" style="text-align: center"></td>
+        <td><input type="text" size=45 disabled value="{{g.next_entry.car_color}} {{g.next_entry.car_year}} {{g.next_entry.car_make}} {{g.next_entry.car_model}}" style="text-align: center"></td>
       </tr>
       <tr>
         <th>Run:</th>

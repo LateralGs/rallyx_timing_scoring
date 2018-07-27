@@ -35,19 +35,31 @@
     font-weight: bold;
   }
 </style>
+<script>
+$(document).ready(function(){
+  // prevent enter key from submitting forms, needed because rfid scanners
+  $('form').on('keyup keypress', function(e) {
+    var keyCode = e.keyCode || e.which;
+    if (keyCode === 13) { 
+      e.preventDefault();
+      return false;
+    }
+  });
+
+});
+</script>
 </head>
 <body>
   <header>
     <div class="menu">
       <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
-      <a href="{{url_for('drivers_page')}}">Drivers</a>
       <a class="menu_active" href="" title="Refresh">Entries</a>
       <a style="background: #bfb" href="{{url_for('entries_new_entry_page')}}">Add Entry</a>
     </div>
     {% include 'flash_message.html' %}
   </header>
   
-  <h2>Entry List ({{g.driver_entry_list|length}})</h2>
+  <h2>Entry List ({{g.entry_list|length}})</h2>
   <table class="simple">
     <tr>
       <th colspan=2></th>
@@ -62,7 +74,7 @@
       <th class="nowrap">Note</th>
     </tr>
     <tr class="break"></tr>
-    {% for entry in g.driver_entry_list %}
+    {% for entry in g.entry_list %}
     <a name="{{entry.entry_id}}" />
     <tr id="{{entry.entry_id}}">
       <td><button onclick='$("#edit_{{entry.entry_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{entry.entry_id}}").offset().top});'>Edit</button></td>
@@ -78,7 +90,7 @@
       </td>
       <td>{{entry.car_class}}</td>
       <td>{{entry.car_number}}</td>
-      <td class="nowrap"><a href="{{url_for('drivers_page')}}#{{entry.driver_id}}">{{entry.first_name}} {{entry.last_name}}</a></td>
+      <td class="nowrap">{{entry.first_name}} {{entry.last_name}}</td>
       <td class="nowrap">{{entry.co_driver}}</td>
       <td class="{{'green' if entry.tracking_number else 'red'}}">{{entry.tracking_number}}</td>
       <td class="{{'green' if entry.checked_in else 'red'}}">{{'Yes' if entry.checked_in else 'No'}}</td>
@@ -91,13 +103,9 @@
       <td colspan=11 style="text-align: left; background: #ffd">
         <form action="{{url_for('entries_page')}}" method='POST'>
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}" />
-          <p><label>Driver:</label> <select name="driver_id" required>
-            {% for driver in g.driver_list %}
-            <option value="{{driver.driver_id}}" {{'selected' if entry.driver_id == driver.driver_id}}>{{driver.first_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
-            {% else %}
-              <option disabled>None</option>
-            {% endfor %}
-          </select> <b>Required</b></p>
+          <p><label>First Name: </label> <input type="text" size=40 name="first_name" value="{{entry.first_name if entry.first_name}}" required /> <b>Required</b></p>
+          <p><label>Last Name: </label> <input type="text" size=40 name="last_name" value="{{entry.last_name if entry.last_name}}" required /> <b>Required</b></p>
+          <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" value="{{entry.tracking_number if entry.tracking_number}}" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
           <p><label>Car Number:</label> <input type="number" min="0" max="1000" size=40 name="car_number" value="{{entry.car_number if entry.car_number}}" required /> <b>Required</b></p>
           <p><label>Car Class:</label> <select name="car_class" required >
             {% for car_class in g.rules.car_class_list %}

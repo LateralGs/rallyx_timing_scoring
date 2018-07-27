@@ -47,7 +47,7 @@
       <input type="hidden" name="event_id" value="{{g.active_event_id}}" />
       <p><label>Entry:</label>*<select name="entry_id" required>
         <option disabled selected>-- Select Entry --</option>
-        {% for entry in g.driver_entry_list %}
+        {% for entry in g.entry_list %}
         <option value="{{entry.entry_id}}">{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
         <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
         {% else %}
@@ -85,7 +85,7 @@
       <td>
         <select name="entry_id" required>
           <option disabled selected>-- Select Entry --</option>
-          {% for entry in g.driver_entry_list %}
+          {% for entry in g.entry_list %}
           <option value="{{entry.entry_id}}" {{'selected' if entry.entry_id == penalty.entry_id}}>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</option>
           <option disabled>&nbsp;&nbsp;{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</option> 
           {% else %}

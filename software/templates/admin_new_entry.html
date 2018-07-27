@@ -35,6 +35,19 @@
     font-weight: bold;
   }
 </style>
+<script>
+$(document).ready(function(){
+  // prevent enter key from submitting forms, needed because rfid scanners
+  $('form').on('keyup keypress', function(e) {
+    var keyCode = e.keyCode || e.which;
+    if (keyCode === 13) { 
+      e.preventDefault();
+      return false;
+    }
+  });
+
+});
+</script>
 </head>
 <body>
   <header>
@@ -54,14 +67,9 @@
       <input type="hidden" name="event_id" value="{{g.event['event_id']}}" />
       <!--{{g.default_driver_id}}-->
       <fieldset><legend>&nbsp;Required&nbsp;</legend>
-      <p><label>Driver:</label> <select name="driver_id" required>
-        <option selected disabled>-- Select Driver --</option>
-        {% for driver in g.driver_list %}
-        <option value="{{driver.driver_id}}" {{'selected' if driver.driver_id == g.default_driver_id}}>{{driver.first_name}} {{driver.last_name}} [{{driver.driver_id}}]</option>
-        {% else %}
-          <option disabled>None</option>
-        {% endfor %}
-      </select> <b>Required</b></p>
+      <p><label>First Name: </label> <input type="text" size=40 name="first_name" required /> <b>Required</b></p>
+      <p><label>Last Name: </label> <input type="text" size=40 name="last_name" required /> <b>Required</b></p>
+      <p><label>Tracking #:</label> <input type="text" size=40 name="tracking_number" /> <b>&lt;- Don't forget this! (RFID #)</b></p>
       <p><label>Car Number:</label> <input type="number" min="0" max="1000" size=40 name="car_number" required /> <b>Required</b></p>
       <p><label>Car Class:</label> <select name="car_class" required >
         <option selected disabled>-- Select Class --</option>
@@ -81,6 +89,9 @@
       </fieldset>
       <br>
       <fieldset>
+      <p><label>MSReg #:</label> <input type="text" size=40 name="msreg_number" /></p>
+      <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" /></p>
+      <p><label>License #:</label> <input type="text" size=40 name="license_number" /></p>
       <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" /> (sprints and stage only)</p>
       <p><label>Note:</label> <input type="text" size=40 name="entry_note" /></p>
 

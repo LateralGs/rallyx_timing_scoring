@@ -189,17 +189,8 @@ def registration_page():
     flash("Invalid rule set for active event!", F_ERROR)
     return redirect(url_for('events_page'))
 
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  
-  g.entry_driver_id_list = []
-  for driver_entry in g.driver_entry_list:
-    g.entry_driver_id_list.append(driver_entry['driver_id'])
+  g.entry_list = db.entry_list(g.event['event_id'])
 
-  # create lookup dict for driver_id's
-  g.driver_dict = {}
-  for driver in g.driver_list:
-    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('admin_registration.html')
 
@@ -239,7 +230,7 @@ def start_control_page():
 
     run_group = db.reg_get('run_group')
     active_event_id = db.reg_get('active_event_id')
-    entry_list = db.query_all("SELECT entry_id, run_group FROM driver_entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
+    entry_list = db.query_all("SELECT entry_id, run_group FROM entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
     next_entry_id = None
 
     logging.debug("tracking_number = %r", tracking_number)
@@ -276,10 +267,10 @@ def start_control_page():
     flash("Invalid form action %r" % action, F_ERROR)
     return redirect(url_for('start_control_page'))
 
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.entry_list = db.entry_list(g.event['event_id'])
 
   g.next_entry_id = db.reg_get_int('next_entry_id')
-  g.next_entry_driver = db.select_one('driver_entries', entry_id=g.next_entry_id)
+  g.next_entry = db.select_one('entries', entry_id=g.next_entry_id)
   if g.next_entry_id is None:
     g.next_entry_run_number = None
   else:
@@ -455,7 +446,7 @@ def timing_page():
       try:
         session['entry_filter'] = int(session['entry_filter'])
       except ValueError:
-        flash("Invalid driver filter", F_ERROR)
+        flash("Invalid entry filter", F_ERROR)
         session['entry_filter'] = None
 
     return redirect(url_for('timing_page'))
@@ -599,7 +590,7 @@ def timing_page():
     state_filter += ['tossout']
   
   g.run_list = db.run_list(event_id=g.event['event_id'], entry_id=session['entry_filter'], state=state_filter, sort='d', limit=session['run_limit'])
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.entry_list = db.entry_list(g.event['event_id'])
 
   g.cars_started = db.run_count(event_id=g.event['event_id'], state='started')
   g.cars_finished = db.run_count(event_id=g.event['event_id'], state='finished')
@@ -608,7 +599,7 @@ def timing_page():
   g.disable_finish = db.reg_get_int('disable_finish', 0)
   
   g.next_entry_id = db.reg_get_int('next_entry_id')
-  g.next_entry_driver = db.select_one('driver_entries', entry_id=g.next_entry_id)
+  g.next_entry = db.select_one('entries', entry_id=g.next_entry_id)
   if g.next_entry_id is None:
     g.next_entry_run_number = None
   else:
@@ -629,7 +620,7 @@ def timing_page():
 
   # create car description strings for entries
   g.car_dict = {}
-  for entry in g.driver_entry_list:
+  for entry in g.entry_list:
     g.car_dict[entry['entry_id']] = "%s %s %s %s" % (entry['car_color'], entry['car_year'], entry['car_make'], entry['car_model'])
 
   return render_template('admin_timing.html')
@@ -673,8 +664,6 @@ def new_entry_page(parent=None):
 
   g.parent = parent
 
-  g.default_driver_id = parse_int(request.args.get('driver_id'))
-
   if g.event is None:
     flash("No active event!", F_ERROR)
     return redirect(url_for('events_page'))
@@ -691,14 +680,10 @@ def new_entry_page(parent=None):
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
-    if 'driver_id' not in entry_data or entry_data['driver_id'] is None:
-      flash("Invalid driver for new entry, no entry created.", F_ERROR)
-    elif 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
+    if 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
       flash("Invalid car class for new entry, no entry created.", F_ERROR)
     else:
       entry_data['run_group'] = db.reg_get("%s_run_group" % entry_data['car_class'])
-      if db.count('entries', event_id=g.event['event_id'], driver_id=entry_data['driver_id']):
-        flash("Entry already exists for driver! Creating new entry anyways.", F_WARN)
       entry_id = db.insert('entries',**entry_data)
       flash("Added new entry [%r]" % entry_id)
     if parent == 'registration':
@@ -716,13 +701,6 @@ def new_entry_page(parent=None):
       return redirect(url_for('entries_new_entry_page'))
     else:
       return redirect(url_for('new_entry_page'))
-
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  
-  # create lookup dict for driver_id's
-  g.driver_dict = {}
-  for driver in g.driver_list:
-    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('admin_new_entry.html')
 
@@ -766,7 +744,10 @@ def entries_page():
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
-    #entry_data['run_group'] = db.reg_get("%s_run_group" % entry_data['car_class'])
+    # remove leading zeros from tracking_number
+    if 'tracking_number' in entry_data:
+      entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
+      flash("tracking_number = %r" % entry_data['tracking_number'])
     db.update('entries', entry_id, **entry_data)
     flash("Entry changes saved")
     return redirect(url_for('entries_page'))
@@ -793,7 +774,7 @@ def entries_page():
     tracking_number = request.form.get('tracking_number')
     if tracking_number is not None:
       tracking_number = tracking_number.lstrip('0')
-      entry = db.select_one('driver_entries', tracking_number=tracking_number)
+      entry = db.select_one('entries', tracking_number=tracking_number)
       if not entry:
         flash("Entry not found for tracking number %s" % tracking_number, F_ERROR)
         return redirect(url_for('entries_page'))
@@ -805,114 +786,9 @@ def entries_page():
     flash("Invalid form action %r" % action, F_ERROR)
     return redirect(url_for('entries_page'))
 
-  #g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
-  g.driver_entry_list = db.select_all('driver_entries', deleted=0, event_id=g.event['event_id'], _order_by=('checked_in', 'car_class', 'first_name', 'last_name'))
-  
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  
-  # create lookup dict for driver_id's
-  g.driver_dict = {}
-  for driver in g.driver_list:
-    g.driver_dict[driver['driver_id']] = driver
+  g.entry_list = db.select_all('entries', deleted=0, event_id=g.event['event_id'], _order_by=('checked_in', 'car_class', 'first_name', 'last_name'))
 
   return render_template('admin_entries.html')
-
-
-#######################################
-
-@app.route('/registration/new_driver', methods=['GET','POST'])
-def registration_new_driver_page():
-  return new_driver_page('registration')
-
-@app.route('/drivers/new_driver', methods=['GET','POST'])
-def drivers_new_driver_page():
-  return new_driver_page('drivers')
-
-@app.route('/new_driver', methods=['GET','POST'])
-def new_driver_page(parent=None):
-  db = get_db()
-
-  g.parent = parent
-  
-  action = request.form.get('action')
-
-  if action == 'insert':
-    driver_data = {}
-    for key in db.table_columns('drivers'):
-      if key in ['driver_id']:
-        continue # ignore
-      elif key in request.form:
-        driver_data[key] = clean_str(request.form.get(key))
-    # remove leading zeros from tracking_number
-    if 'tracking_number' in driver_data and driver_data['tracking_number'] is not None:
-      driver_data['tracking_number'] = driver_data['tracking_number'].lstrip('0')
-      flash("tracking_number = %r" % driver_data['tracking_number'])
-    driver_id = db.insert('drivers',**driver_data)
-    flash("Added new driver [%r]" % driver_id)
-    if parent == 'registration':
-      return redirect(url_for('registration_new_entry_page',driver_id=driver_id))
-    elif parent == 'drivers':
-      return redirect(url_for('drivers_page'))
-    else:
-      return redirect(url_for('new_driver_page'))
-
-  elif action is not None:
-    flash("Unkown form action %r" % action, F_ERROR)
-    if parent == 'registration':
-      return redirect(url_for('registration_new_driver_page'))
-    elif parent == 'drivers':
-      return redirect(url_for('drivers_new_driver_page'))
-    else:
-      return redirect(url_for('new_driver_page'))
-
-  return render_template('admin_new_driver.html')
-
-
-@app.route('/drivers', methods=['GET','POST'])
-def drivers_page():
-  db = get_db()
-
-  action = request.form.get('action')
-
-  if action == 'delete':
-    if request.form.get('confirm_delete'):
-      driver_id = request.form.get('driver_id')
-      if db.driver_exists(driver_id):
-        db.update('drivers', driver_id, deleted=1)
-        db.execute("UPDATE entries SET deleted=1 WHERE driver_id=?", (driver_id,))
-        # FIXME do we need to propegate this further?
-        flash("Driver deleted")
-      else:
-        flash("Invalid driver_id for delete operation.", F_ERROR)
-    else:
-      flash("Delete ignored, no confirmation", F_WARN)
-    return redirect(url_for('drivers_page'))
-
-  elif action == 'update':
-    driver_id = request.form.get('driver_id')
-    if not db.driver_exists(driver_id):
-      flash("Invalid driver id", F_ERROR)
-      return redirect(url_for('drivers_page'))
-    driver_data = {}
-    for key in db.table_columns('drivers'):
-      if key in ['driver_id']:
-        continue # ignore
-      elif key in request.form:
-        driver_data[key] = clean_str(request.form.get(key))
-    # remove leading zeros from tracking_number
-    if 'tracking_number' in driver_data:
-      driver_data['tracking_number'] = driver_data['tracking_number'].lstrip('0')
-      flash("tracking_number = %r" % driver_data['tracking_number'])
-    db.update('drivers', driver_id, **driver_data)
-    flash("Driver changes saved")
-    return redirect(url_for('drivers_page'))
-  
-  elif action is not None:
-    flash("Unkown form action %r" % action, F_ERROR)
-    return redirect(url_for('drivers_page'))
-
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  return render_template('admin_drivers.html')
 
 
 #######################################
@@ -1023,7 +899,7 @@ def penalties_page():
     return redirect(url_for('penalties_page'))
 
   g.penalty_list = db.select_all('penalties', event_id=g.event['event_id'], deleted=0, _order_by="penalty_id")
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.entry_list = db.entry_list(g.event['event_id'])
 
   return render_template('admin_penalties.html')
 
@@ -1150,8 +1026,8 @@ def scores_page():
 
   # sort entries into car class
   g.class_entry_list = {}
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
-  for entry in g.driver_entry_list:
+  g.entry_list = db.entry_list(g.event['event_id'])
+  for entry in g.entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
     if entry['scores_visible']:
@@ -1162,15 +1038,8 @@ def scores_page():
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
-  for entry in g.driver_entry_list:
+  for entry in g.entry_list:
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored','finished','started'), limit=g.rules.max_runs)
-  
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  
-  # create lookup dict for driver_id's
-  g.driver_dict = {}
-  for driver in g.driver_list:
-    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('admin_scores.html')
 
@@ -1219,30 +1088,10 @@ def import_page():
     row_count = 0
     for row in reader:
       row_count += 1
-      # check if row has valid status
-      # check if we have a driver with msreg unique id
-      # if not create driver
-      #   - check for optional city, state, zip, member #
-      # check car class against rule_set
-      # check if we have an entry for driver in the given class
-      # if not create entry
-      #   - check for optional co-driver
 
       if row['Status'] not in valid_status:
         flash("Skipping row %d: invalid status, %r" % (row_count, row['Status']), 'inline')
         continue
-
-      driver_id = db.query_single("SELECT driver_id FROM drivers WHERE msreg_number=? AND NOT deleted", (row['Unique ID'],))
-      if driver_id is None:
-        data = {}
-        data['msreg_number'] = clean_str(row['Unique ID'])
-        data['first_name'] = clean_str(row['First Name'])
-        data['last_name'] = clean_str(row['Last Name'])
-        driver_id = db.insert('drivers', **data)
-        data['driver_id'] = driver_id
-        flash("Creating driver [%(driver_id)s]: %(msreg_number)s %(first_name)s %(last_name)s" % data, 'inline')
-      else:
-        flash("Driver found [%d]" % driver_id, 'inline')
 
       if row['Class'] in g.rules.car_class_list:
         car_class = row['Class']
@@ -1252,11 +1101,12 @@ def import_page():
         flash("Skipping row %d: invalid class, %r" % (row_count, row['Class']), 'inline')
         continue
 
-      entry_id = db.query_single("SELECT entry_id FROM entries WHERE event_id=? AND driver_id=? AND car_class=?", (g.event['event_id'], driver_id, car_class))
-
+      entry_id = db.query_single("SELECT entry_id FROM entries WHERE msreg_number=? AND NOT deleted", (row['Unique ID'],))
       if entry_id is None:
         data = {}
-        data['driver_id'] = driver_id
+        data['msreg_number'] = clean_str(row['Unique ID'])
+        data['first_name'] = clean_str(row['First Name'])
+        data['last_name'] = clean_str(row['Last Name'])
         data['event_id'] = g.event['event_id']
         data['car_class'] = car_class
         data['car_color'] = clean_str(row['Color'])
@@ -1270,7 +1120,7 @@ def import_page():
           data['co_driver'] = clean_str(row['Co-Drivers'])
         entry_id = db.insert('entries', **data)
         data['entry_id'] = entry_id
-        flash("Creating entry [%(entry_id)s]: %(car_class)s, %(car_number)s" % data, 'inline')
+        flash("Creating entry [%(entry_id)s]: %(msreg_number)s %(first_name)s %(last_name)s %(car_class)s, %(car_number)s" % data, 'inline')
       else:
         flash("Entry found [%d]" % entry_id, 'inline')
 
@@ -1315,8 +1165,8 @@ def export_scores_csv_page():
   
   # sort entries into car class
   g.class_entry_list = {}
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
-  for entry in g.driver_entry_list:
+  g.entry_list = db.entry_list(g.event['event_id'])
+  for entry in g.entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
     if entry['scores_visible']:
@@ -1327,7 +1177,7 @@ def export_scores_csv_page():
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
-  for entry in g.driver_entry_list:
+  for entry in g.entry_list:
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored',), limit=g.rules.max_runs)
 
   output = StringIO()

@@ -34,7 +34,7 @@ def handle_next_entry(db, data):
 
   run_group = db.reg_get('run_group')
   active_event_id = db.reg_get('active_event_id')
-  entry_list = db.query_all("SELECT entry_id, run_group FROM driver_entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
+  entry_list = db.query_all("SELECT entry_id, run_group FROM entries WHERE event_id=? AND tracking_number=?", (active_event_id, tracking_number))
   next_entry_id = None
 
   logging.debug("tracking_number = %r", data)

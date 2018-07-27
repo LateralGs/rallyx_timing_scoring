@@ -7,7 +7,7 @@ import os
 #######################################
 
 # this number should match the schema_versions/version_NNN.sql file name used to init the db
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 # used as global storage for table column names
 columns = {}
@@ -321,8 +321,8 @@ class ScoringDatabase(apsw.Connection):
   def penalty_exists(self, penalty_id):
     return bool(self.cursor().execute("SELECT 1 FROM penalties WHERE penalty_id=? AND NOT deleted LIMIT 1", (penalty_id,)).fetchone())
 
-  def driver_entry_list(self, event_id):
-    return list(self.cursor().execute("SELECT * FROM driver_entries WHERE event_id=?", (event_id,)))
+  def entry_list(self, event_id):
+    return list(self.cursor().execute("SELECT * FROM entries WHERE event_id=? AND NOT deleted", (event_id,)))
   
   def set_run_recalc(self, run_id):
     self.execute("UPDATE runs SET recalc=1 WHERE run_id=?", (run_id,))
