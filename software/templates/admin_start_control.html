@@ -35,7 +35,14 @@
     font-weight: bold;
   }
 </style>
-
+<script>
+$(document).ready(function(){
+  $("#next_entry_div").load("{{url_for('start_next_entry_page')}}");
+  setInterval(function(){
+    $("#next_entry_div").load("{{url_for('start_next_entry_page')}}");
+  }, 3000);
+});
+</script>
 </head>
 <body>
   <h2>RFID Scan</h2>
@@ -46,39 +53,16 @@
   </form>
 
   <h2>Next Entry</h2>
-  <div class="layout_box" style="padding-left: 16px; padding-right:16px">
-    <table class="layout">
-      <tr>
-        <td></td>
-        <td><span style="color: red; font-size: 1.1em; font-weight: bold">&nbsp;{{g.next_entry_msg if g.next_entry_msg}}</span></td>
-      </tr>
-      <tr>
-        <th>Entry:</th>
-        <td><input type="text" size=45 disabled value="{{g.next_entry.car_class}} {{g.next_entry.car_number}} {{g.next_entry.first_name}} {{g.next_entry.last_name}}" style="font-weight: bold; text-align: center"></td>
-      </tr>
-      <tr>
-        <th>Car:</th>
-        <td><input type="text" size=45 disabled value="{{g.next_entry.car_color}} {{g.next_entry.car_year}} {{g.next_entry.car_make}} {{g.next_entry.car_model}}" style="text-align: center"></td>
-      </tr>
-      <tr>
-        <th>Run:</th>
-        <td><input type="text" size=7 disabled value="{{g.next_entry_run_number if g.next_entry_run_number}}" style="text-align: center"><span style="color: red; font-size: 1.4em; font-weight: bold">&nbsp;{{'!!! LAST RUN !!!' if g.next_entry_run_number == g.event['max_runs']}}{{'!!! EXTRA RUN !!!' if g.next_entry_run_number > g.event['max_runs']}} </span></td>
-      </tr>
-      <tr>
-        <td></td>
-        <td>
-          <form action="{{url_for('start_control_page')}}"  method="POST">
-            <button type="submit" name="action" value="clear" style="width: 75%">Clear</button>
-          </form>
-        </td>
-      </tr>
-    </table>
+  <form action="{{url_for('start_control_page')}}"  method="POST">
+    <button type="submit" name="action" value="clear" style="width: 75%">Clear</button>
+  </form>
+  <div class="layout_box" style="padding-left: 16px; padding-right:16px" id="next_entry_div">
   </div>
   
   <h2>Run Group Entry List</h2>
   <form action="{{url_for('start_control_page')}}"  method="POST">
     <input type="hidden" name="action" value="set" />
-    {% for entry in g.driver_entry_list %}
+    {% for entry in g.entry_list %}
     {% if entry.run_group is none or entry.run_group == '-1' or entry.run_group == g.run_group %}
     <button style="width: 75%; text-align: left;" type="submit" name="entry_id" value="{{entry.entry_id}}"><b>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</b><br>
       <i>{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</i></button><br><br>

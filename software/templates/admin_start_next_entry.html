@@ -1,0 +1,18 @@
+<table class="layout" style="font-size: 1.4em; font-weight: bold;">
+  <tr>
+    <td></td>
+    <td><span style="color: red">&nbsp;{{g.next_entry_msg if g.next_entry_msg}}</span></td>
+  </tr>
+  <tr>
+    <th style="text-align: right">Entry:&nbsp;</th>
+    <td><span>{{g.next_entry.car_class}} {{g.next_entry.car_number}} {{g.next_entry.first_name}} {{g.next_entry.last_name}}</span></td>
+  </tr>
+  <tr>
+    <th style="text-align: right">Car:&nbsp;</th>
+    <td><span>{{g.next_entry.car_color}} {{g.next_entry.car_year}} {{g.next_entry.car_make}} {{g.next_entry.car_model}}</span></td>
+  </tr>
+  <tr>
+    <th style="text-align: right">Run:&nbsp;</th>
+    <td><span>{{g.next_entry_run_number if g.next_entry_run_number}}</span><span style="color: red">&nbsp;{{'!!! LAST RUN !!!' if g.next_entry_run_number == g.event['max_runs']}}{{'!!! EXTRA RUN !!!' if g.next_entry_run_number > g.event['max_runs']}} </span></td>
+  </tr>
+</table>

@@ -90,8 +90,8 @@
       <tbody class="blue">
         {% for run in g.latest_runs %}
         <tr class="{{run.class|lower}} {{ loop.cycle('odd', 'even') }}">
-          <td>{{g.driver_entry_dict[run.entry_id].car_class}}</td>
-          <td>{{g.driver_entry_dict[run.entry_id].car_number}}</td>
+          <td>{{g.entry_dict[run.entry_id].car_class}}</td>
+          <td>{{g.entry_dict[run.entry_id].car_number}}</td>
           <td>{{run.raw_time}}</td>
           <td>{{run.cones if run.cones > 0 else '-'}}</td>
           <td>{{run.gates if run.gates > 0 else '-'}}</td>

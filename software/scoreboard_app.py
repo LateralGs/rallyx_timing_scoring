@@ -96,11 +96,9 @@ def index_page():
 
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
-
   g.class_entry_list = {}
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
-  for entry in g.driver_entry_list:
+  g.entry_list = db.entry_list(g.event['event_id'])
+  for entry in g.entry_list:
     if entry['car_class'] not in g.class_entry_list:
       g.class_entry_list[entry['car_class']] = []
     if entry['scores_visible']:
@@ -111,17 +109,10 @@ def index_page():
     g.class_entry_list[car_class].sort(cmp=entry_cmp)
 
   g.entry_run_list = {}
-  for entry in g.driver_entry_list:
+  for entry in g.entry_list:
     # FIXME TODO add other run states so we can show pending runs in scores
     g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored','started','finished'), limit=g.rules.max_runs)
   
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  
-  # create lookup dict for driver_id's
-  g.driver_dict = {}
-  for driver in g.driver_list:
-    g.driver_dict[driver['driver_id']] = driver
-
   return render_template('scoreboard_index.html')
 
 
@@ -136,18 +127,11 @@ def finish_page():
 
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.entry_list = db.entry_list(g.event['event_id'])
 
-  g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
+  g.entry_dict = { entry['entry_id'] : entry for entry in g.entry_list }
 
   g.latest_runs = db.run_list(event_id=g.event['event_id'], state="scored", limit=10, sort='D')
-
-  g.driver_list = db.select_all('drivers', deleted=0, _order_by=('last_name', 'first_name'))
-  
-  # create lookup dict for driver_id's
-  g.driver_dict = {}
-  for driver in g.driver_list:
-    g.driver_dict[driver['driver_id']] = driver
 
   return render_template('scoreboard_finish.html')
 
@@ -175,9 +159,9 @@ def penalties_page():
 
   g.auto_refresh = request.args.get('auto_refresh')
 
-  g.driver_entry_list = db.driver_entry_list(g.event['event_id'])
+  g.entry_list = db.entry_list(g.event['event_id'])
 
-  g.driver_entry_dict = { entry['entry_id'] : entry for entry in g.driver_entry_list }
+  g.entry_dict = { entry['entry_id'] : entry for entry in g.entry_list }
 
   g.penalty_list = db.select_all('penalties', event_id=g.event['event_id'])
 

@@ -285,6 +285,34 @@ def start_control_page():
 
 #######################################
 
+@app.route('/start_control/next_entry')
+def start_next_entry_page():
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+  
+  if g.event is None:
+    flash("No active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+  if g.rules is None:
+    flash("Invalid rule set for active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+
+  g.next_entry_id = db.reg_get_int('next_entry_id')
+  g.next_entry = db.select_one('entries', entry_id=g.next_entry_id)
+  if g.next_entry_id is None:
+    g.next_entry_run_number = None
+  else:
+    # FIXME change this to max of run_number instead of count
+    g.next_entry_run_number = 1 + db.run_count(entry_id=g.next_entry_id, state=('started','finished','scored'))
+
+  g.run_group = db.reg_get('run_group')
+  g.next_entry_msg = db.reg_get('next_entry_msg')
+
+  return render_template('admin_start_next_entry.html')
+
+#######################################
+
 
 @app.route('/events', methods=['GET','POST'])
 def events_page():
@@ -1101,7 +1129,7 @@ def import_page():
         flash("Skipping row %d: invalid class, %r" % (row_count, row['Class']), 'inline')
         continue
 
-      entry_id = db.query_single("SELECT entry_id FROM entries WHERE msreg_number=? AND NOT deleted", (row['Unique ID'],))
+      entry_id = db.query_single("SELECT entry_id FROM entries WHERE event_id=? AND msreg_number=? AND NOT deleted", (g.event['event_id'], row['Unique ID']))
       if entry_id is None:
         data = {}
         data['msreg_number'] = clean_str(row['Unique ID'])
