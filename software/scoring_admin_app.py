@@ -773,7 +773,7 @@ def entries_page():
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
     # remove leading zeros from tracking_number
-    if 'tracking_number' in entry_data:
+    if 'tracking_number' in entry_data and entry_data['tracking_number'] is not None:
       entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
       flash("tracking_number = %r" % entry_data['tracking_number'])
     db.update('entries', entry_id, **entry_data)
