@@ -5,10 +5,18 @@ import urllib2
 import os
 import types
 import re
+from datetime import date
 
 # used to pipe stdout from subprocess to /dev/null
 dev_null = open(os.devnull, 'wb')
 util_log = logging.getLogger(__name__)
+
+
+def date_weekday(date_str):
+  try:
+    return date(*map(int,date_str.split('-'))).strftime('%A')
+  except:
+    return None
 
 #######################################
 

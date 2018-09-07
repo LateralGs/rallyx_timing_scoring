@@ -41,6 +41,7 @@ except:
 app.jinja_env.filters['format_time']=format_time
 app.jinja_env.filters['pad']=pad
 app.jinja_env.filters['markdown']=markdown.markdown
+app.jinja_env.filters['weekday']=date_weekday
 
 # remove extra whitespace from jinja output
 app.jinja_env.trim_blocks=True
@@ -115,6 +116,39 @@ def index_page():
   
   return render_template('scoreboard_index.html')
 
+#######################################
+
+@app.route('/final')
+def final_page():
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+  
+  if g.event is None:
+    return "No active event."
+
+  g.auto_refresh = request.args.get('auto_refresh')
+
+  g.class_entry_list = {}
+  g.entry_list = db.entry_list(g.event['event_id'])
+  for entry in g.entry_list:
+    if entry['car_class'] not in g.class_entry_list:
+      g.class_entry_list[entry['car_class']] = []
+    if entry['scores_visible']:
+      g.class_entry_list[entry['car_class']].append(entry)
+
+  # sort each car class by event_time_ms and run_count
+  for car_class in g.class_entry_list:
+    g.class_entry_list[car_class].sort(cmp=entry_cmp)
+
+  g.entry_run_list = {}
+  for entry in g.entry_list:
+    # FIXME TODO add other run states so we can show pending runs in scores
+    g.entry_run_list[entry['entry_id']] = db.run_list(entry_id=entry['entry_id'], state=('scored','started','finished'), limit=g.rules.max_runs)
+  
+  return render_template('scoreboard_final.html')
+
+#######################################
 
 @app.route('/finish')
 def finish_page():
