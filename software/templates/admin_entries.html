@@ -46,7 +46,26 @@ $(document).ready(function(){
     }
   });
 
+  $("#search_box").on("keyup", function() {
+    var value = $(this).val().toLowerCase();
+    $("#entries_table tr.filtered_list").filter(function() {
+      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+    });
+    $("#entries_table tr.filtered_form").filter(function() {
+      $(this).hide();
+    });
+  });
+  $("#clear_button").on("click", function() {
+    $("#search_box").val("");
+    $("#entries_table tr.filtered_list").filter(function() {
+      $(this).show();
+    });
+    $("#entries_table tr.filtered_form").filter(function() {
+      $(this).hide();
+    });
+  });
 });
+
 </script>
 </head>
 <body>
@@ -60,7 +79,8 @@ $(document).ready(function(){
   </header>
   
   <h2>Entry List ({{g.entry_list|length}})</h2>
-  <table class="simple">
+  <input type="text" id="search_box" placeholder="Search entries.." style="width: 25%"><button id="clear_button">Clear</button><br><br>
+  <table class="simple" id="entries_table">
     <tr>
       <th colspan=2></th>
       <th class="nowrap">Class</th>
@@ -76,7 +96,7 @@ $(document).ready(function(){
     <tr class="break"></tr>
     {% for entry in g.entry_list %}
     <a name="{{entry.entry_id}}" />
-    <tr id="{{entry.entry_id}}">
+    <tr id="{{entry.entry_id}}" class="filtered_list">
       <td><button onclick='$("#edit_{{entry.entry_id}}").toggle(); $("html, body").animate({scrollTop: $("#{{entry.entry_id}}").offset().top});'>Edit</button></td>
       <td>
         <form action="{{url_for('entries_page')}}" method="POST">
@@ -97,9 +117,8 @@ $(document).ready(function(){
       <td>{{entry.work_assignment}}</td>
       <td>{{'Any' if entry.run_group == '-1' or entry.run_group is none else entry.run_group}}</td>
       <td colspan=6 style="text-align: left">{{entry.entry_note if entry.entry_note}}</td>
-    <tr>
     </tr>
-    <tr id="edit_{{entry.entry_id}}" style="display: none">
+    <tr id="edit_{{entry.entry_id}}" style="display: none" class="filtered_form">
       <td colspan=11 style="text-align: left; background: #ffd">
         <form action="{{url_for('entries_page')}}" method='POST'>
           <input type="hidden" name="entry_id" value="{{entry.entry_id}}" />
@@ -143,7 +162,6 @@ $(document).ready(function(){
         </form>
       </td>
     </tr>
-    <tr class="break"></tr>
     {% endfor %}
   </table>
 </body>

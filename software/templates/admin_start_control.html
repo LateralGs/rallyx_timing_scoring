@@ -41,6 +41,19 @@ $(document).ready(function(){
   setInterval(function(){
     $("#next_entry_div").load("{{url_for('start_next_entry_page')}}");
   }, 3000);
+
+  $("#search_box").on("keyup", function() {
+    var value = $(this).val().toLowerCase();
+    $("button.filtered").filter(function() {
+      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+    });
+  });
+  $("#clear_button").on("click", function() {
+    $("#search_box").val("");
+    $("button.filtered").filter(function() {
+      $(this).show();
+    });
+  });
 });
 </script>
 </head>
@@ -60,12 +73,13 @@ $(document).ready(function(){
   </div>
   
   <h2>Run Group Entry List</h2>
-  <form action="{{url_for('start_control_page')}}"  method="POST">
+  <input type="text" id="search_box" placeholder="Search entries.." style="width: 25%"><button id="clear_button">Clear</button><br><br>
+  <form action="{{url_for('start_control_page')}}"  method="POST" id="entries_form">
     <input type="hidden" name="action" value="set" />
     {% for entry in g.entry_list %}
     {% if entry.run_group is none or entry.run_group == '-1' or entry.run_group == g.run_group %}
-    <button style="width: 75%; text-align: left;" type="submit" name="entry_id" value="{{entry.entry_id}}"><b>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</b><br>
-      <i>{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</i></button><br><br>
+    <button class="filtered" style="width: 75%; text-align: left; margin-bottom: 16px" type="submit" name="entry_id" value="{{entry.entry_id}}"><b>{{entry.car_class}} {{entry.car_number}} {{entry.first_name}} {{entry.last_name}}</b> ({{entry.run_count}} runs)<br>
+      <i>{{entry.car_color}} {{entry.car_year}} {{entry.car_make}} {{entry.car_model}}</i></button>
     {% endif %}
     {% endfor %}
   </form>

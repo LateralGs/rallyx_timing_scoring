@@ -208,3 +208,10 @@ def entry_cmp(a,b):
   else:
     return 0
 
+def start_entry_cmp(a,b):
+  if a['run_count'] < b['run_count']:
+    return 1
+  elif a['run_count'] > b['run_count']:
+    return -1
+  else:
+    return 0

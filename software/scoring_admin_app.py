@@ -268,6 +268,10 @@ def start_control_page():
     return redirect(url_for('start_control_page'))
 
   g.entry_list = db.entry_list(g.event['event_id'])
+  for entry in g.entry_list:
+    entry['run_count'] = db.run_count(entry_id=entry['entry_id'], state=('started','finished','scored'))
+
+  g.entry_list.sort(key=lambda x: x['run_count'])
 
   g.next_entry_id = db.reg_get_int('next_entry_id')
   g.next_entry = db.select_one('entries', entry_id=g.next_entry_id)
@@ -1046,6 +1050,20 @@ def scores_page():
     db.set_entry_recalc(entry_id)
     uwsgi.mule_msg('recalc')
     flash("Entry score recalculating")
+    return redirect(url_for('scores_page'))
+
+  elif action == 'entries_fill_dns':
+    for entry_id in request.form.getlist('entry_id'):
+      run_count = db.run_count(entry_id=entry_id, state=('started','finished','scored'))
+      for i in range(g.rules.max_runs - run_count):
+        flash("Add DNS [%s, %r]" % (entry_id,i))
+        run_id = db.insert('runs', event_id=g.event['event_id'], entry_id=entry_id, recalc=1, dns_dnf=1, state='scored')
+        flash("Added new run [%r]" % run_id)
+      uwsgi.mule_msg('recalc')
+
+    return redirect(url_for('scores_page'))
+
+  elif action == 'entries_trim_dns':
     return redirect(url_for('scores_page'))
   
   elif action is not None:

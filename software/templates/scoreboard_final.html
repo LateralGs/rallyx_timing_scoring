@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Scoring Admin</title>
+  <title>RallyX Live Scoring</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
-  <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}" />
   <script type=text/javascript src="{{url_for('static', filename='jquery.js') }}"></script>
+
   <style>
   table.latest, table.fastest, table.scores, table.cone_killer, table.lost_and_found {
     border: 1px solid black;
@@ -54,6 +54,11 @@
     white-space: nowrap;
     text-align: left;
   }
+  
+  td.car_info {
+    white-space: nowrap;
+    text-align: left;
+  }
 
   td.time {
     white-space: nowrap;
@@ -64,6 +69,14 @@
     //font-weight: bold;
   }
 
+  td.run_border {
+    border-right: 2px solid black;
+  }
+
+  body {
+    font-family: Monospace;
+  }
+  
   .left_border {
     border-left: 3px solid black;
   }
@@ -71,45 +84,65 @@
   .right_border {
     border-right: 3px solid black;
   }
+  
+  a.anchor {
+    padding-top: 45px;
+  }
 
-  body {
-    font-family: Monospace;
+
+  tr.hl {
+    border: 2px solid black;
+  }
+
+  .hl td {
+    font-weight: bold;
+    background-color: green;
+    color: white;
   }
 
   </style>
+
+  {% if g.auto_refresh %}
+  <meta http-equiv="refresh" content="{{g.auto_refresh}}">
+  {% endif %}
+
+  <script>
+  $(document).ready(function(){
+    $("input:checkbox").click(function() {
+      $(this).parent('td').parent('tr').toggleClass("hl");
+    });
+  });
+
+  </script>
 </head>
 <body>
-  <header>
-    <div class="menu">
-      <a class="menu_small" href="{{url_for('menu_page')}}" title="Main Menu">&#9776; Menu</a>
-      <a href="{{url_for('timing_page')}}">Timing & Scoring</a>
-      <a class="menu_active" href="" title="Refresh">Scoreboard</a>
-      <a href="{{url_for('penalties_page')}}">Penalties</a>
-    </div>
-    {% include 'flash_message.html' %}
-  </header>
+  <h1>{{g.event.organization}}</h1>
+  <h2>SCCA RallyCross - {{g.event.name}}</h2>
+  <h2>{{g.event.event_date}} ({{g.event.event_date|weekday}})</h2>
 
   <div>
-    <h2>Event Scores</h2>
-    <form action="{{url_for('scores_page')}}"  method='POST'>
-    <button type="submit" name="action" value="event_recalc">Recalculate Scores</button> &nbsp;
-    <button type="submit" name="action" value="entries_fill_dns">Entries - Fill DNS</button> &nbsp;
-    <!--<button type="submit" name="action" value="entries_trim_dns">Entries - Trim DNS</button>-->
-    <br>
-    <span>()=Drop Run</span>
+    <a name="top" />
+    {% if g.rules.drop_runs > 0 %}
+    <div>Note: () marks Drop Runs</div>
+    {% endif %}
+
     <table class="scores">
+      {% for car_class in g.rules.car_class_list if car_class in g.class_entry_list %}
+      <thead>
       <tr>
-        <th colspan=4>Entry</th>
+        <th colspan=4>
+          <a name="{{car_class}}" class="anchor"/>
+            {{g.rules.car_class_names[car_class]}}
+        </th>
         <th colspan=3 class="left_border">Event</th>
         {% for num in range(g.rules.max_runs) %}
-        <th colspan=4 class="left_border">Run {{num+1}}</th>
+        <th class="left_border" colspan=4>Run {{num+1}}</th>
         {% endfor %}
       </tr>
       <tr>
-        <th></th>
         <th>Class</td>
-        <th class="nowrap">Car #</td>
-        <th>Name</td>
+        <th>#</td>
+        <th>Entry</td>
         <th class="left_border">Penalty<br>Time</th>
         <th>Total<br>Time</th>
         <th>In<br>Class</th>
@@ -120,25 +153,18 @@
         <th>Total</th>
         {% endfor %}
       </tr>
-      <tr class="break"></tr>
-      {% for car_class in g.rules.car_class_list %}
-      <tbody class="{{ loop.cycle('blue','green','red','yellow','cyan','magenta') }}">
-        {% if car_class in g.class_entry_list %}
+      </thead>
+      <tbody class="{{ loop.cycle('blue','green','red') }}">
         {% for entry in g.class_entry_list[car_class] %}
         <tr class="{{ loop.cycle('even', 'odd') }}">
-          <td><input type="checkbox" name="entry_id" value="{{entry['entry_id']}}"></td>
           <td>{{entry.car_class}}</td>
-          <td>
-            <a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1">{{entry.car_number}}</a>
-          </td>
+          <td>{{entry.car_number}}</td>
           <td class="driver_name">
-            <a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1">
-              {{entry.first_name}} {{entry.last_name}}
-              {% if entry.co_driver %}
-              <br/><small>{{ entry.co_driver}}</small>
-              {% endif %}
-            </a>
-            [<a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">E</a>]
+            {{entry.first_name}} {{entry.last_name}}
+            {% if entry.co_driver %}
+            / <small>{{ entry.co_driver}}</small>
+            {% endif %}
+            <br><small>{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</small>
           </td>
           <td class="left_border">{{entry.event_penalties if entry.event_penalties}}</td>
           {% if entry.recalc %}
@@ -146,17 +172,17 @@
           {% else %}
           <td class="time">{{entry.event_time if entry.event_time}}</td>
           {% endif %}
-          <td>{{loop.index if entry.event_time}}</td>
+          <td>{{loop.index if entry.event_time and entry.event_time != 'DNF'}}</td>
           {% for run in g.entry_run_list[entry.entry_id] %}
-            <td class="left_border time {{ 'drop' if run.drop_run else ''}}"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1#{{run['run_id']}}">{{run.raw_time if run.state == 'scored' else run.state}}</a></td>
+            <td class="left_border time {{ 'drop' if run.drop_run else ''}}">{{run.raw_time if run.state == 'scored' else run.state}}</td>
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.cones if run.cones > 0 else '-'}}</td>
             <td class="{{ 'drop' if run.drop_run else ''}}">{{run.gates if run.gates > 0 else '-'}}</td>
             {% if run.recalc %}
-            <td class="time"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1#{{run['run_id']}}">RECALC</a></td>
+            <td class="time">RECALC</td>
             {% elif run.drop_run %}
-            <td class="drop time"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1#{{run['run_id']}}">({{run.total_time if run.state == 'scored' else run.state}})</a></td>
+            <td class="drop time">({{run.total_time if run.state == 'scored' else run.state}})</td>
             {% else %}
-            <td class="time"><a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1#{{run['run_id']}}">{{run.total_time if run.state == 'scored' else run.state}}</a></td>
+            <td class="time">{{run.total_time if run.state == 'scored' else run.state}}</td>
             {% endif%}
           {% endfor %}
           {% for i in range(g.rules.max_runs-(g.entry_run_list[entry.entry_id]|length)) %}
@@ -164,18 +190,10 @@
           {% endfor %}
         </tr>
         {% endfor %}
-        {% else %}
-        <tr class="even">
-          <td></td>
-          <td>{{car_class}}</td>
-          <td colspan="{{(4*g.rules.max_runs) + 6}}">None</td>
-        </tr>
-        {% endif %}
       </tbody>
       <tr class="break"></tr>
       {% endfor %}
     </table>
-    </form>
   </div>
 </body>
 </html>
