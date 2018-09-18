@@ -110,12 +110,12 @@ class DefaultRules(object):
       dropped_runs = []
       scored_runs = db.query_all("SELECT run_id, dns_dnf, start_time_ms, finish_time_ms, total_time_ms FROM runs WHERE state = 'scored' AND entry_id=? AND NOT deleted", (entry_id,))
 
-      # sort runs based on time or dnf status
-      scored_runs.sort(cmp=run_cmp)
-
       # remove extra runs beyond max_runs
       dropped_runs += scored_runs[self.max_runs:]
       del scored_runs[self.max_runs:]
+
+      # sort runs based on time or dnf status
+      scored_runs.sort(cmp=run_cmp)
 
       # removed drop runs beyond min runs
       if len(scored_runs) > self.min_runs and self.drop_runs > 0:
