@@ -130,7 +130,7 @@
       {% for car_class in g.rules.car_class_list if car_class in g.class_entry_list %}
       <thead>
       <tr>
-        <th colspan=4>
+        <th colspan=3>
           <a name="{{car_class}}" class="anchor"/>
             {{g.rules.car_class_names[car_class]}}
         </th>
@@ -164,7 +164,7 @@
             {% if entry.co_driver %}
             / <small>{{ entry.co_driver}}</small>
             {% endif %}
-            <br><small>{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</small>
+            <br><small>{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}&nbsp;</small>
           </td>
           <td class="left_border">{{entry.event_penalties if entry.event_penalties}}</td>
           {% if entry.recalc %}

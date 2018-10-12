@@ -141,6 +141,8 @@ $(document).ready(function(){
 
           <p><label>Co-Driver:</label> <input type="text" size=40 name="co_driver" value="{{entry.co_driver if entry.co_driver}}" /></p>
           <p><label>Note:</label> <input type="text" size=40 name="entry_note" value="{{entry.entry_note if entry.entry_note}}"/></p>
+          <p><label>MSR #:</label> <input type="text" size=40 name="msreg_number" value="{{entry.msreg_number if entry.msreg_number}}"/></p>
+          <p><label>SCCA #:</label> <input type="text" size=40 name="scca_number" value="{{entry.scca_number if entry.scca_number}}"/></p>
           <p><label>Show Scores:</label> <select name="scores_visible">
             <option value="0" {{'selected' if not entry.scores_visible}}>No</option>
             <option value="1" {{'selected' if entry.scores_visible}}>Yes</option>

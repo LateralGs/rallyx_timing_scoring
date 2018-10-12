@@ -117,7 +117,7 @@
 </head>
 <body>
   <h1>Live Scoring</h1>
-  <h4>All scores are provisional pending fianal audit by event officials.</h4>
+  <h4>All scores are provisional pending final audit by event officials.</h4>
   <!--<h3><a href="{{url_for('finish_page')}}">Latest Runs</a></h3>-->
   <!--<h3><a href="{{url_for('sectors_page')}}">Sector Times</a></h3>-->
 
@@ -168,7 +168,7 @@
             {% if entry.co_driver %}
             / <small>{{ entry.co_driver}}</small>
             {% endif %}
-            <br><small>{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}</small>
+            <br><small>{{entry.car_year if entry.car_year}} {{entry.car_make if entry.car_make}} {{entry.car_model if entry.car_model}} {{'('+entry.car_color+')' if entry.car_color}}&nbsp;</small>
           </td>
           <td class="left_border">{{entry.event_penalties if entry.event_penalties}}</td>
           {% if entry.recalc %}

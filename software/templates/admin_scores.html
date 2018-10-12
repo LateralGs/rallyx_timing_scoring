@@ -76,6 +76,14 @@
     font-family: Monospace;
   }
 
+  tr.odd:hover td {
+    background:  #fcf;
+  }
+
+  tr.even:hover td {
+    background:  #fcf;
+  }
+
   </style>
 </head>
 <body>
@@ -122,23 +130,23 @@
       </tr>
       <tr class="break"></tr>
       {% for car_class in g.rules.car_class_list %}
-      <tbody class="{{ loop.cycle('blue','green','red','yellow','cyan','magenta') }}">
+      <tbody class="{{ loop.cycle('blue','green','yellow') }}">
         {% if car_class in g.class_entry_list %}
         {% for entry in g.class_entry_list[car_class] %}
         <tr class="{{ loop.cycle('even', 'odd') }}">
           <td><input type="checkbox" name="entry_id" value="{{entry['entry_id']}}"></td>
           <td>{{entry.car_class}}</td>
           <td>
-            <a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1">{{entry.car_number}}</a>
+            <a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1" title="View Runs">{{entry.car_number}}</a>
           </td>
           <td class="driver_name">
-            <a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1">
+            [<a href="{{url_for('entries_page')}}#{{entry['entry_id']}}" title="View Entry">E</a>]
+            <a href="{{url_for('timing_page')}}?entry_filter={{entry['entry_id']}}&scored_filter=1&finished_filter=1&started_filter=1" title="View Runs">
               {{entry.first_name}} {{entry.last_name}}
               {% if entry.co_driver %}
               <br/><small>{{ entry.co_driver}}</small>
               {% endif %}
             </a>
-            [<a href="{{url_for('entries_page')}}#{{entry['entry_id']}}">E</a>]
           </td>
           <td class="left_border">{{entry.event_penalties if entry.event_penalties}}</td>
           {% if entry.recalc %}

@@ -712,6 +712,9 @@ def new_entry_page(parent=None):
         continue # ignore
       elif key in request.form:
         entry_data[key] = clean_str(request.form.get(key))
+    if 'tracking_number' in entry_data and entry_data['tracking_number'] is not None:
+      entry_data['tracking_number'] = entry_data['tracking_number'].lstrip('0')
+      flash("tracking_number = %r" % entry_data['tracking_number'])
     if 'car_class' not in entry_data or entry_data['car_class'] not in g.rules.car_class_list:
       flash("Invalid car class for new entry, no entry created.", F_ERROR)
     else:
@@ -736,6 +739,52 @@ def new_entry_page(parent=None):
 
   return render_template('admin_new_entry.html')
 
+
+@app.route('/entries/copy_tracking_number')
+def entries_copy_tracking_number():
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+
+  if g.event is None:
+    flash("No active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+  if g.rules is None:
+    flash("Invalid rule set for active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+
+  # get list of entries for current event
+  # for each entry search previous events with same msreg number or name
+
+  entry_list = db.select_all('entries', deleted=0, event_id=g.event['event_id'], _order_by=('checked_in', 'car_class', 'first_name', 'last_name'))
+
+  for entry in entry_list:
+    row = db.query_one("SELECT tracking_number FROM entries WHERE event_id != ? AND (msreg_number = ? OR ( first_name = ? AND last_name = ?)) ORDER BY event_id DESC LIMIT 1", 
+                       (g.event['event_id'], entry['msreg_number'],  entry['first_name'], entry['last_name']))
+    if row and row['tracking_number']:
+      db.update('entries', entry['entry_id'], tracking_number=row['tracking_number'].lstrip('0'))
+
+  return redirect(url_for('entries_page'))
+
+@app.route('/entries/clear_tracking_number')
+def entries_clear_tracking_number():
+  db = get_db()
+  g.event = get_event(db)
+  g.rules = get_rules(g.event)
+
+  if g.event is None:
+    flash("No active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+  if g.rules is None:
+    flash("Invalid rule set for active event!", F_ERROR)
+    return redirect(url_for('events_page'))
+
+  entry_list = db.select_all('entries', deleted=0, event_id=g.event['event_id'], _order_by=('checked_in', 'car_class', 'first_name', 'last_name'))
+
+  for entry in entry_list:
+    db.update('entries', entry['entry_id'], tracking_number=None)
+
+  return redirect(url_for('entries_page'))
 
 @app.route('/entries', methods=['GET','POST'])
 def entries_page():
